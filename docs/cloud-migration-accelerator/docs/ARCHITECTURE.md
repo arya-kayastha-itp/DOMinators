@@ -62,10 +62,11 @@ flowchart LR
 
 These 3 small stateless HTTP apps each return JSON that includes `served_by: "legacy"`, so a viewer can see which environment answered.
 
-Each app is **deliberately misconfigured** so there is a visible story to tell:
+Each app is **deliberately misconfigured** so there is a visible story to tell. The headline finding is `NO_VPC_SEGMENTATION` (see [Cloud_ENVIRONMENTS.md](Cloud_ENVIRONMENTS.md) §5): Account A has one real VPC, but it was never given a private-subnet tier — every route table in it sends `0.0.0.0/0` to the IGW. `PUBLIC_IP` is the per-instance consequence of that, not a separate story about legacy AWS being unable to have private subnets.
 
 | Finding code | Misconfiguration |
 |---|---|
+| `NO_VPC_SEGMENTATION` | The VPC has no private subnet — every route table routes `0.0.0.0/0` to the IGW |
 | `SG_OPEN_SSH` | Port 22 open to `0.0.0.0/0` |
 | `SG_OPEN_APP` | App port open to the world |
 | `EBS_UNENCRYPTED` | Root volume not encrypted |

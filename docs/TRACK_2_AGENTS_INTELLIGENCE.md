@@ -41,14 +41,14 @@ Full JSON shapes (unchanged from the original contracts doc):
   "owner": "team-commerce", "business_unit": "Retail",
   "runtime": {"type": "ec2", "instance_ids": ["i-0abc"], "ami_id": "ami-0old",
               "ami_age_days": 912, "instance_type": "t3.micro", "port": 8080, "stateful": false},
-  "network": {"vpc_id": "vpc-legacy", "subnet_public": true, "public_ip": true,
+  "network": {"vpc_id": "vpc-legacy", "vpc_has_private_subnet": false, "subnet_public": true, "public_ip": true,
               "private_ip": "10.10.1.23",
               "sg_ingress": [{"port": 22, "cidr": "0.0.0.0/0"}, {"port": 8080, "cidr": "0.0.0.0/0"}]},
   "storage": {"ebs_encrypted": false, "volume_gb": 8},
   "metadata": {"imds_v2_required": false},
   "config": {"env": {"PRICING_URL": "http://10.10.1.40:8080"}},
   "depends_on": ["app-pricing"], "tags": {"depends-on": "app-pricing"},
-  "findings": ["SG_OPEN_SSH", "SG_OPEN_APP", "EBS_UNENCRYPTED", "IMDSV1", "OLD_AMI", "PUBLIC_IP", "MISSING_TAGS"],
+  "findings": ["SG_OPEN_SSH", "SG_OPEN_APP", "EBS_UNENCRYPTED", "IMDSV1", "OLD_AMI", "NO_VPC_SEGMENTATION", "PUBLIC_IP", "MISSING_TAGS", "HARDCODED_IP"],
   "status": "DISCOVERED"
 }
 ```
@@ -97,7 +97,7 @@ Rules every agent (in both tracks) follows: deterministic first, LLM second — 
 
 **Input:** legacy account (via AssumeRole) + `data/fleet.json`. **Output:** `AppRecord[]`, `Tiering[]`, dependency edges.
 
-Scan (EC2, SGs, volumes, images, SSM params) → normalize → run 9 finding rules (`SG_OPEN_SSH`, `SG_OPEN_APP`, `EBS_UNENCRYPTED`, `IMDSV1`, `OLD_AMI`, `PUBLIC_IP`, `MISSING_TAGS`, `HARDCODED_IP`, `STATEFUL`) → map dependencies 3 ways (tag, SSM/env value, SG reference) → ingest synthetic fleet through the *same* logic → tier (rules first, score-based: start 100, deduct for stateful/-60, unknown runtime/-40, >5 deps/-15, hardcoded IP/-10, each unfixable finding/-10; GOLDEN ≥75, GRAY 40–74, RED <40 or stateful; borderline ±5 goes to Claude).
+Scan (EC2, SGs, volumes, images, route tables, SSM params) → normalize → run 10 finding rules (`SG_OPEN_SSH`, `SG_OPEN_APP`, `EBS_UNENCRYPTED`, `IMDSV1`, `OLD_AMI`, `NO_VPC_SEGMENTATION`, `PUBLIC_IP`, `MISSING_TAGS`, `HARDCODED_IP`, `STATEFUL`) → map dependencies 3 ways (tag, SSM/env value, SG reference) → ingest synthetic fleet through the *same* logic → tier (rules first, score-based: start 100, deduct for stateful/-60, unknown runtime/-40, >5 deps/-15, hardcoded IP/-10, each unfixable finding/-10; GOLDEN ≥75, GRAY 40–74, RED <40 or stateful; borderline ±5 goes to Claude).
 
 Target distribution on the synthetic fleet: ~60% Golden / 25% Gray / 15% Red. Performance: real scan <10s, synthetic tiering <3s, batch `APP_DISCOVERED` events by 50.
 

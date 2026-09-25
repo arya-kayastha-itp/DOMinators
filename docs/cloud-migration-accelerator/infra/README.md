@@ -24,7 +24,7 @@ Pick **one region** for everything. VPC peering, the ALB IP targets, and cross-a
 ```
 infra/terraform/
 ├── modules/
-│   ├── network/              # VPC, 2 public + 2 private subnets, IGW, 1 NAT
+│   ├── network/              # VPC + subnets + IGW; `create_private_tier` toggles a private route table + NAT (legacy: off → no private subnet exists at all; target: on)
 │   ├── iam_cross_account/    # roles + trust policies (see below)
 │   ├── legacy_app/           # INSECURE on purpose (Account A)
 │   ├── golden_app/           # HARDENED blueprint (Account B) ← Blueprint agent targets this
@@ -40,7 +40,7 @@ infra/terraform/
 | # | Step | Owner | Done by hour |
 |---|---|---|---|
 | 1 | `bootstrap/`: state bucket and lock table in B | C1 | 1 |
-| 2 | `network` in both accounts (`10.10.0.0/16` in A, `10.20.0.0/16` in B) | C1 | 3 |
+| 2 | `network` in both accounts: `10.10.0.0/16` in A with `create_private_tier=false` (public subnets only, no private route table, no NAT — this makes `NO_VPC_SEGMENTATION` genuine, not simulated); `10.20.0.0/16` in B with `create_private_tier=true` | C1 | 3 |
 | 3 | VPC peering: requester in B, accepter in A, routes on both sides | C1 | 4 |
 | 4 | `iam_cross_account` roles, then test with `aws sts assume-role` | C1 | 4 |
 | 5 | `legacy_app` × 3 in A, with user-data running the tiny HTTP app | C2 | 6 |
@@ -125,8 +125,7 @@ These are **hardcoded in the module** and never inputs:
 
 ## Cost guardrails
 
-- **Expected cost:** 6× t3.micro, 1 ALB, 2 NAT gateways, and a little Bedrock usage. Roughly $1–2/hour, so about $50–100 over 48 h.
-- To save money, run the NAT only in B, and let legacy use public subnets (it's "insecure" anyway).
+- **Expected cost:** 6× t3.micro, 1 ALB, 1 NAT gateway (only in B — legacy has no private tier to put one behind), and a little Bedrock usage. Roughly $1–2/hour, so about $50–100 over 48 h.
 - Set an AWS Budgets alarm in both accounts on day 0.
 
 ## Reset and teardown

@@ -15,14 +15,14 @@ All objects are JSON, and Python definitions live in `agents/common/models.py` (
   "business_unit": "Retail",
   "runtime": {"type": "ec2", "instance_ids": ["i-0abc"], "ami_id": "ami-0old", "ami_age_days": 912,
               "instance_type": "t3.micro", "port": 8080, "stateful": false},
-  "network": {"vpc_id": "vpc-legacy", "subnet_public": true, "public_ip": true, "private_ip": "10.10.1.23",
+  "network": {"vpc_id": "vpc-legacy", "vpc_has_private_subnet": false, "subnet_public": true, "public_ip": true, "private_ip": "10.10.1.23",
               "sg_ingress": [{"port": 22, "cidr": "0.0.0.0/0"}, {"port": 8080, "cidr": "0.0.0.0/0"}]},
   "storage": {"ebs_encrypted": false, "volume_gb": 8},
   "metadata": {"imds_v2_required": false},
   "config": {"env": {"PRICING_URL": "http://10.10.1.40:8080"}},
   "depends_on": ["app-pricing"],
   "tags": {"depends-on": "app-pricing"},
-  "findings": ["SG_OPEN_SSH", "SG_OPEN_APP", "EBS_UNENCRYPTED", "IMDSV1", "OLD_AMI", "PUBLIC_IP", "MISSING_TAGS"],
+  "findings": ["SG_OPEN_SSH", "SG_OPEN_APP", "EBS_UNENCRYPTED", "IMDSV1", "OLD_AMI", "NO_VPC_SEGMENTATION", "PUBLIC_IP", "MISSING_TAGS", "HARDCODED_IP"],
   "status": "DISCOVERED"
 }
 ```

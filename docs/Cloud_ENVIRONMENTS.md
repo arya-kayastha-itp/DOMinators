@@ -15,7 +15,8 @@
 
 | Area | Old environment (Account A) | New environment (Account B) | Finding it proves |
 |---|---|---|---|
-| Network placement | Public subnet, public IP on the instance | Private subnet, no public IP | `PUBLIC_IP` |
+| Network segmentation | One legacy VPC (peering to Account B needs it), but **zero private subnets** — every route table in it sends `0.0.0.0/0` to the IGW, so there's no tier for an app to hide in even if it wanted to | One target VPC with real tiering: a private-subnet route table with no IGW route for the apps, a separate public one for the ALB | `NO_VPC_SEGMENTATION` |
+| Network placement (the per-instance result of that) | Public subnet, public IP on the instance | Private subnet, no public IP | `PUBLIC_IP` |
 | Admin access | Port 22 open to `0.0.0.0/0`, SSH key pair | No port 22, no key pair; SSM Session Manager | `SG_OPEN_SSH` |
 | App port | Open to the whole internet | Only from the edge ALB's security group | `SG_OPEN_APP` |
 | Disk | Unencrypted gp2 | KMS-encrypted gp3 (`alias/mig-ebs`) | `EBS_UNENCRYPTED` |
@@ -32,6 +33,7 @@
 
 | Setting | `legacy_app` (old) | `golden_app` (new) |
 |---|---|---|
+| VPC/subnet source | `legacy_app` takes `subnet_id`/SG as plain inputs, picked per call — there's no tiering module to resolve them from, and the VPC itself has no private route table to pick from anyway | always resolved from the one target VPC's tiering outputs (`target_outputs.json`) |
 | `subnet_id` | a public subnet | a private subnet (pre-created, from `target_outputs.json`) |
 | `associate_public_ip_address` | `true` | `false` |
 | `key_name` | set | not set |
@@ -67,7 +69,7 @@ The app must also answer on its path prefix (for example `/catalog/` and `/catal
 
 | Resource | Purpose |
 |---|---|
-| 3 legacy apps: `app-catalog`, `app-pricing`, `app-orders` | The real apps being migrated |
+| 3 legacy apps: `app-catalog`, `app-pricing`, `app-orders` | The real apps being migrated — same legacy VPC, but each app's subnet/SG picked independently rather than through a shared tiering module |
 | IAM role `mig-discovery-readonly` | Read-only scanning by the Discovery agent |
 | SSM String parameters under `/legacy/<app>/...` | App config with hardcoded IPs, one of Discovery's dependency signals |
 | VPC peering accepter + route to `10.20.0.0/16` | Lets the new ALB reach the old apps |
@@ -96,7 +98,7 @@ The app must also answer on its path prefix (for example `/catalog/` and `/catal
 | `app-pricing` | `app-catalog` | **Missing** | + `MISSING_TAGS` |
 | `app-orders` | `app-pricing` | **Missing** | + `MISSING_TAGS`, `HARDCODED_IP` |
 
-The baseline issues on all 3 apps are `SG_OPEN_SSH`, `SG_OPEN_APP`, `EBS_UNENCRYPTED`, `IMDSV1`, `OLD_AMI` and `PUBLIC_IP`.
+The baseline issues on all 3 apps are `SG_OPEN_SSH`, `SG_OPEN_APP`, `EBS_UNENCRYPTED`, `IMDSV1`, `OLD_AMI`, `NO_VPC_SEGMENTATION` and `PUBLIC_IP` — 7 baseline findings, plus `MISSING_TAGS` and `HARDCODED_IP` per the table above (9 distinct finding codes across the fleet).
 
 Each dependency is expressed **three ways**, and Discovery must find all of them:
 
@@ -109,7 +111,20 @@ Each dependency is expressed **three ways**, and Discovery must find all of them
 ## 5. Design rules
 
 - **The old environment is insecure, not broken.** Its apps work perfectly; the problem is security. This mirrors the real client situation.
+- **The headline finding is `NO_VPC_SEGMENTATION`, not `PUBLIC_IP`.** Legacy AWS always supported private subnets and security groups — claiming otherwise exaggerates the point, and that's not what's wrong with Account A. What's actually wrong, and genuinely scannable, is that Account A's VPC (it has one real VPC, needed for peering to Account B) was never given a private-subnet tier at all: every route table in it sends `0.0.0.0/0` to the IGW. `PUBLIC_IP` is the per-instance consequence — an instance can't help having a public IP if it's never offered a subnet without one. Discovery reports both codes (see `ARCHITECTURE.md` / `CONTRACTS.md`), but `NO_VPC_SEGMENTATION` is the one that tells the real story: hand-built, unsegmented infrastructure, not a missed checkbox.
 - **The only failure in the demo is the bad wave**, which lives in the *new* environment's app config: `PRICING_URL` missing on `app-orders`, so `/` returns 500 while `/health` stays 200. Cutover's traffic gate catches it. Never break security settings to create it.
 - **Hardening is never an LLM input.** The golden module hardcodes it. The Blueprint agent fills only `name`, `port`, `instance_type`, `env` and `tags`.
 - **Agents hardcode nothing about either environment.** Discovery learns Account A by scanning it. Blueprint and Cutover read Account B from `target_outputs.json`.
 - **Build order and teardown:** build legacy before target. Destroy target before legacy, because peering and the IP targets depend on the legacy VPC.
+
+---
+
+## 6. Account setup (two real AWS accounts)
+
+Account A and Account B are two separate, real AWS accounts — not two VPCs in one account. Steps:
+
+1. **Create Account A (legacy)**: sign up with a dedicated email, phone-verify, attach a payment method. This becomes `mig-legacy`.
+2. **Create Account B (target)**: repeat with a second email. This becomes `mig-target`.
+3. Configure both as named profiles locally (`~/.aws/config`), matching the profile names used throughout this doc (`mig-legacy`, `mig-target`), so Discovery/Blueprint/Cutover can target each by profile.
+4. **Free tier note:** AWS moved off the always-free 12-month tier for new signups in July 2024. New accounts now get a **$200 credit for the first 6 months** instead — this comfortably covers the whole demo's usage, but confirm the credit is active on both accounts before relying on it.
+5. **Cost discipline:** VPCs, subnets, security groups, and EC2 within free-tier instance-hours cost nothing. The target environment's **ALB, NAT Gateway, and KMS key are not free** — bring them up with Terraform right before a rehearsal/demo and tear them down after, rather than leaving them running between sessions.
