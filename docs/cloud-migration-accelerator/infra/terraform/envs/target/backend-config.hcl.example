@@ -1,0 +1,2 @@
+bucket         = "mig-tfstate-<your-account-id>"
+dynamodb_table = "mig-tfstate-lock"

@@ -1,0 +1,6 @@
+# Copy to terraform.tfvars and fill in once Nancy's legacy VPC exists.
+# Everything else has a working default (region ap-south-1, CIDR 10.20.0.0/16).
+
+enable_peering    = false # flip to true once legacy_vpc_id/legacy_account_id below are real
+legacy_account_id = ""
+legacy_vpc_id     = ""

@@ -93,6 +93,8 @@ ENV/
 *.jar
 *.war
 target/
+# ...except our own envs/target/ Terraform dir (not a Java build output)
+!docs/cloud-migration-accelerator/infra/terraform/envs/target/
 
 # IDE files
 .vscode/
