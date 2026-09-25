@@ -21,17 +21,22 @@ Pick **one region** for everything. VPC peering, the ALB IP targets, and cross-a
 
 ## Terraform layout
 
+`modules/network`, `modules/iam_cross_account`, `modules/golden_app`, `modules/edge_alb`,
+`envs/target`, and `bootstrap` are implemented — see [`infra/terraform/README.md`](terraform/README.md)
+for the exact apply order. `modules/legacy_app` and `envs/legacy` are Account A and owned by
+Nancy separately.
+
 ```
 infra/terraform/
 ├── modules/
 │   ├── network/              # VPC + subnets + IGW; `create_private_tier` toggles a private route table + NAT (legacy: off → no private subnet exists at all; target: on)
 │   ├── iam_cross_account/    # roles + trust policies (see below)
-│   ├── legacy_app/           # INSECURE on purpose (Account A)
+│   ├── legacy_app/           # INSECURE on purpose (Account A) — not yet implemented, Nancy's
 │   ├── golden_app/           # HARDENED blueprint (Account B) ← Blueprint agent targets this
 │   └── edge_alb/             # ALB, listener, per-app rule with 2 weighted TGs
 ├── envs/
-│   ├── legacy/               # Account A: network + 3 legacy_app + readonly role
-│   └── target/               # Account B: network + peering accepter + edge_alb + app-hello + tf state
+│   ├── legacy/               # Account A: network + 3 legacy_app + readonly role — not yet implemented, Nancy's
+│   └── target/               # Account B: network + peering requester + edge_alb + app-hello + tf state
 └── bootstrap/                # S3 bucket + DynamoDB lock table for state (run once, in B)
 ```
 
