@@ -83,6 +83,17 @@ Each app is an EC2 t3.micro running a ~30-line Python HTTP server from user-data
 
 In the legacy module, set `http_tokens = "optional"` (IMDSv1), `encrypted = false`, a pinned old AMI ID, and `associate_public_ip_address = true`.
 
+**Finding the pinned AMI ID.** Unlike the golden module (which looks up "latest AL2023" dynamically via an SSM parameter), the legacy module must hardcode one fixed AMI ID — that's what makes `OLD_AMI` a static fact about the account, not something that silently updates and stops being true. The AWS Console's AMI Catalog now surfaces AL2023 first, so don't hunt for Amazon Linux 2 there; look it up once via CLI, in the legacy account:
+
+```bash
+aws ec2 describe-images --profile mig-legacy --region us-east-1 --owners amazon \
+  --filters "Name=name,Values=amzn2-ami-hvm-2.0.*-x86_64-gp2" "Name=state,Values=available" \
+  --query "reverse(sort_by(Images, &CreationDate))[0:5].{ID:ImageId,Name:Name,Created:CreationDate}" \
+  --output table
+```
+
+Pick any result with a `Created` date more than 365 days old (Discovery's `OLD_AMI` rule checks exactly that), and hardcode its `ImageId` as the `ami` variable's default in `modules/legacy_app`. If the filter returns nothing, drop the `amzn2-ami-hvm-2.0.*` pattern to plain `amzn2-ami-hvm-*` — some regions alias the name slightly differently.
+
 ## Golden module (Account B) — the blueprint
 
 The `golden_app` module takes these inputs, which **the Blueprint agent fills**:
