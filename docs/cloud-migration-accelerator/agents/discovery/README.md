@@ -15,6 +15,7 @@
    - `describe_security_groups`
    - `describe_volumes`
    - `describe_images` (for AMI age)
+   - `describe_route_tables` (to check for a private-subnet tier)
    - `ssm.get_parameters_by_path("/legacy/")`
 2. **Normalize.** Build one `AppRecord` per app (instances grouped by the `app` tag).
 3. **Find issues.** Run the finding rules below.
@@ -34,6 +35,7 @@
 | `EBS_UNENCRYPTED` | Any attached volume has `Encrypted=false` |
 | `IMDSV1` | `MetadataOptions.HttpTokens != required` |
 | `OLD_AMI` | AMI creation date is more than 365 days ago |
+| `NO_VPC_SEGMENTATION` | No route table in the instance's VPC lacks a `0.0.0.0/0` route to an IGW — i.e. the VPC has no private-subnet tier at all |
 | `PUBLIC_IP` | The instance has a public IP |
 | `MISSING_TAGS` | Any of `owner`, `cost-center`, `data-class` is missing |
 | `HARDCODED_IP` | A config value contains an IP literal |

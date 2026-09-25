@@ -27,7 +27,7 @@ This track answers "now actually do it" — and it owns the two moments the demo
 
 Match → map inputs via LLM (`set_golden_inputs` tool call; rewrite legacy IPs to target-side names; fill tags from legacy record or `flag_gap`) → validate against Pydantic schema → render `generated/<app>/main.tf` from `templates/main.tf.j2` → build the before/after diff with fix annotations → `terraform init/validate/plan` → **apply** (real apps only) → for synthetic apps, dry-run only (steps 1–5).
 
-Finding → fix map is fixed (matches Track 2's finding codes exactly): `SG_OPEN_SSH`→SSM Session Manager, `SG_OPEN_APP`→ALB-only ingress, `EBS_UNENCRYPTED`→KMS gp3, `IMDSV1`→`http_tokens=required`, `OLD_AMI`→latest AL2023 via SSM param, `PUBLIC_IP`→private subnet, `MISSING_TAGS`→enforced+flagged, `HARDCODED_IP`→rewritten to service names.
+Finding → fix map is fixed (matches Track 2's finding codes exactly): `SG_OPEN_SSH`→SSM Session Manager, `SG_OPEN_APP`→ALB-only ingress, `EBS_UNENCRYPTED`→KMS gp3, `IMDSV1`→`http_tokens=required`, `OLD_AMI`→latest AL2023 via SSM param, `NO_VPC_SEGMENTATION`→placed in the target VPC's private-subnet tier, `PUBLIC_IP`→private subnet, `MISSING_TAGS`→enforced+flagged, `HARDCODED_IP`→rewritten to service names.
 
 **Bad-wave role:** when `/demo/bad-wave` is on for `app-orders`, drop `PRICING_URL` from the inputs *after* validation — still valid Terraform, breaks at runtime.
 

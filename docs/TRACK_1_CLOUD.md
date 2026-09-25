@@ -10,13 +10,15 @@ This track is unchanged from the individual packets; it was already a clean 2-pe
 
 | | C1 | C2 |
 |---|---|---|
-| Hours 0–8 | Accounts, IAM roles, VPCs, peering | Legacy VPC, 3 misconfigured EC2 apps |
+| Hours 0–8 | Accounts, IAM roles, VPCs, peering | Legacy VPC, 3 misconfigured EC2 apps (see note below) |
 | Hours 8–16 | Golden module, edge ALB, Bedrock access check | Wire dependencies, build the bad-wave switch |
 | Hour 16 | — | **Hard handoff: moves to dashboard** |
 | Hours 16–32 | Support A3/A4 on apply and ALB weights | Dashboard build |
 | Hours 32–48 | Full rebuild test, backup video, **presenter** | Dashboard polish, **demo operator** |
 
 C1 is the track's infra half and never really blocks on C2. C2's phase 1 (legacy apps) is what Track 2 and Track 3 scan against; C2's phase 2 (dashboard) is what all four agents render into.
+
+**Note on the legacy VPC (see [Cloud_ENVIRONMENTS.md](Cloud_ENVIRONMENTS.md)):** Account A gets one real VPC, not a fleet of disconnected ones — peering to Account B depends on that. What C2 must **not** build is a private-subnet tier inside it: every route table in the legacy VPC should route `0.0.0.0/0` straight to the IGW, with no private route table at all. That absence is the genuine, scannable `NO_VPC_SEGMENTATION` finding — Discovery's headline finding, ahead of `PUBLIC_IP` — so don't build a tidy tiered legacy VPC by accident, or the finding stops being real.
 
 ---
 
@@ -59,7 +61,7 @@ This track is the **least blocked** of the three — almost everything in hours 
 ## Definition of Done
 
 - [ ] Both accounts provisioned from Terraform, rebuildable in under 20 minutes
-- [ ] 3 legacy apps up with all 7 findings genuinely detectable, dependencies discoverable 3 ways
+- [ ] 3 legacy apps up with all 9 finding codes genuinely detectable across the fleet (see [Cloud_ENVIRONMENTS.md](Cloud_ENVIRONMENTS.md) §4), dependencies discoverable 3 ways
 - [ ] Golden module + `app-hello` reference live in Account B
 - [ ] Edge ALB wired, both target groups registered per app, weights start `100/0`
 - [ ] Bad-wave switch verified with Track 3

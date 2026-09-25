@@ -42,6 +42,7 @@ That keeps the LLM output small, checkable and safe.
 | `EBS_UNENCRYPTED` | KMS-encrypted gp3 |
 | `IMDSV1` | `http_tokens = required` |
 | `OLD_AMI` | Latest AL2023 AMI from an SSM parameter |
+| `NO_VPC_SEGMENTATION` | Placed in the target VPC's private-subnet tier (its route table has no IGW route) |
 | `PUBLIC_IP` | Private subnet, no public IP |
 | `MISSING_TAGS` | Required tags enforced; gaps flagged |
 | `HARDCODED_IP` | Env rewritten to service names |
@@ -65,6 +66,6 @@ Pre-apply `app-pricing` and `app-orders` before judging. Apply `app-catalog` liv
 ## Done when
 
 - [ ] All 3 real apps apply cleanly and turn healthy in `tg-target`
-- [ ] The diff view clearly shows at least 6 fixes for each real app
+- [ ] The diff view clearly shows at least 7 fixes for each real app
 - [ ] 1,000 synthetic dry runs finish in under 30 s with zero render errors
 - [ ] With `LLM_BACKEND=off`, a rule-based mapper still produces valid inputs
