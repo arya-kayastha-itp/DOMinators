@@ -1,3 +1,10 @@
+locals {
+  apps = { for app in var.apps : app.name => app }
+
+  # Apps that get their own listener port instead of a path rule on :80.
+  dedicated = { for k, app in local.apps : k => app if app.listener_port != null }
+}
+
 resource "aws_security_group" "alb" {
   name        = "${var.name_prefix}-alb"
   description = "Edge ALB - HTTP from the internet, demo only"
@@ -8,6 +15,16 @@ resource "aws_security_group" "alb" {
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  dynamic "ingress" {
+    for_each = local.dedicated
+    content {
+      from_port   = ingress.value.listener_port
+      to_port     = ingress.value.listener_port
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
   }
 
   egress {
@@ -45,8 +62,24 @@ resource "aws_lb_listener" "http" {
   }
 }
 
+resource "aws_lb_listener" "dedicated" {
+  for_each          = local.dedicated
+  load_balancer_arn = aws_lb.this.arn
+  port              = each.value.listener_port
+  protocol          = "HTTP"
+
+  default_action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "application/json"
+      status_code  = "404"
+      message_body = "{\"error\":\"no matching app\"}"
+    }
+  }
+}
+
 resource "aws_lb_target_group" "legacy" {
-  for_each    = { for app in var.apps : app.name => app }
+  for_each    = local.apps
   name        = "tg-${each.value.name}-legacy"
   port        = each.value.port
   protocol    = "HTTP"
@@ -54,7 +87,7 @@ resource "aws_lb_target_group" "legacy" {
   target_type = "ip"
 
   health_check {
-    path                = "${each.value.path_prefix}/health"
+    path                = coalesce(each.value.health_path, "${each.value.path_prefix}/health")
     interval            = 5
     timeout             = 4
     healthy_threshold   = 2
@@ -65,7 +98,7 @@ resource "aws_lb_target_group" "legacy" {
 }
 
 resource "aws_lb_target_group" "target" {
-  for_each    = { for app in var.apps : app.name => app }
+  for_each    = local.apps
   name        = "tg-${each.value.name}-target"
   port        = each.value.port
   protocol    = "HTTP"
@@ -73,7 +106,7 @@ resource "aws_lb_target_group" "target" {
   target_type = "instance"
 
   health_check {
-    path                = "${each.value.path_prefix}/health"
+    path                = coalesce(each.value.health_path, "${each.value.path_prefix}/health")
     interval            = 5
     timeout             = 4
     healthy_threshold   = 2
@@ -83,14 +116,16 @@ resource "aws_lb_target_group" "target" {
   tags = var.tags
 }
 
+# One rule per app either way, so Cutover always shifts weights with
+# ModifyRule on listener_rule_arns[app], whichever listener the app is on.
 resource "aws_lb_listener_rule" "this" {
-  for_each     = { for app in var.apps : app.name => app }
-  listener_arn = aws_lb_listener.http.arn
+  for_each     = local.apps
+  listener_arn = each.value.listener_port != null ? aws_lb_listener.dedicated[each.key].arn : aws_lb_listener.http.arn
   priority     = each.value.priority
 
   condition {
     path_pattern {
-      values = ["${each.value.path_prefix}/*", each.value.path_prefix]
+      values = each.value.listener_port != null ? ["/*"] : ["${each.value.path_prefix}/*", each.value.path_prefix]
     }
   }
 

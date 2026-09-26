@@ -54,6 +54,20 @@ output "tf_apply_role_arn" {
   value = module.iam_cross_account.tf_apply_role_arn
 }
 
+output "app_routes" {
+  description = "Per-app routing + hosting facts Blueprint/Cutover need: path_prefix and priority on :80, or a dedicated listener_port; health_path; golden_app runtime."
+  value = {
+    for a in local.apps : a.name => {
+      path_prefix   = a.path_prefix
+      priority      = a.priority
+      port          = a.port
+      listener_port = try(a.listener_port, null)
+      health_path   = try(a.health_path, "${a.path_prefix}/health")
+      runtime       = lookup(local.app_runtimes, a.name, "demo-server")
+    }
+  }
+}
+
 output "app_hello_private_ip" {
   value = module.app_hello.private_ip
 }

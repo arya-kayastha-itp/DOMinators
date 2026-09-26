@@ -28,7 +28,18 @@ locals {
     { name = "app-catalog", port = var.app_port, path_prefix = "/catalog", priority = 10 },
     { name = "app-pricing", port = var.app_port, path_prefix = "/pricing", priority = 20 },
     { name = "app-orders", port = var.app_port, path_prefix = "/orders", priority = 30 },
+    # OWASP Juice Shop is a single-page app with absolute asset paths, so it
+    # gets its own ALB port rather than a path prefix. Its container maps
+    # host 8080 -> 3000 on both sides, so instance port and SGs stay 8080.
+    # app-gitea is deliberately absent: it's stateful, tiers Red and is
+    # parked by Planning, so it never migrates here.
+    { name = "app-juice-shop", port = var.app_port, path_prefix = "", priority = 10, listener_port = 3000, health_path = "/" },
   ]
+
+  # golden_app runtime per app; anything not listed runs app/server.py.
+  app_runtimes = {
+    "app-juice-shop" = "juice-shop"
+  }
 }
 
 # --- Network: full public/private tiering, unlike legacy ---
@@ -173,23 +184,29 @@ module "app_hello" {
   env           = {}
   tags          = local.tags
 
-  target_group_arn  = aws_lb_target_group.hello.arn
-  vpc_id            = module.network.vpc_id
+  target_group_arn   = aws_lb_target_group.hello.arn
+  vpc_id             = module.network.vpc_id
   private_subnet_ids = module.network.private_subnet_ids
-  path_prefix       = "/hello"
+  path_prefix        = "/hello"
 
-  depends_on = [aws_security_group.golden_app, aws_iam_instance_profile.app_instance, aws_kms_alias.ebs]
+  # Value references, not a module-level depends_on: depends_on defers every
+  # data source in the module (AMI, KMS key) whenever anything upstream has
+  # pending changes, which turns an unrelated ALB change into a forced
+  # replacement of this instance.
+  security_group_name   = aws_security_group.golden_app.tags["Name"]
+  instance_profile_name = aws_iam_instance_profile.app_instance.name
+  kms_key_alias         = aws_kms_alias.ebs.name
 }
 
 # --- VPC peering to the legacy account (requester side) ---
 # Off by default: turn on once Nancy's legacy VPC exists.
 
 resource "aws_vpc_peering_connection" "to_legacy" {
-  count       = var.enable_peering ? 1 : 0
-  vpc_id      = module.network.vpc_id
-  peer_vpc_id = var.legacy_vpc_id
+  count         = var.enable_peering ? 1 : 0
+  vpc_id        = module.network.vpc_id
+  peer_vpc_id   = var.legacy_vpc_id
   peer_owner_id = var.legacy_account_id
-  auto_accept = false
+  auto_accept   = false
 
   tags = merge(local.tags, { Name = "mig-target-to-legacy", Side = "requester" })
 }

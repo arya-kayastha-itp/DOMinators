@@ -45,6 +45,14 @@ checks of the edge ALB._
 - [x] `.gitattributes` pins `*.py` / `*.sh` / `*.tpl` / `*.yaml` to LF — Windows CRLF
       checkouts changed `app-hello`'s `user_data` hash and would break the shebang on
       new golden_app instances
+- [x] `module "app_hello"` no longer uses a module-level `depends_on` (it deferred the
+      AMI/KMS lookups and turned an ALB change into a forced replacement of the
+      instance); value references keep fresh-build ordering
+- [x] `edge_alb`: optional `listener_port` (own ALB listener, still one rule per app)
+      and `health_path`; `golden_app`: `runtime` = `demo-server` | `juice-shop`
+      (vetted template, Docker `bkimminich/juice-shop:v20.2.0`, host 8080 → 3000)
+- [x] Juice Shop runtime smoke-tested live: temporary golden instance healthy in
+      `tg-app-juice-shop-target`, then destroyed (2026-09-26)
 - [x] Shared app code `app/server.py` (`SERVED_BY` env var is the only env difference;
       `REQUIRE_UPSTREAM=1` + no `UPSTREAM_URL` → 500 on `/`, 200 on `/health` — the
       bad-wave behaviour, in code)
@@ -80,6 +88,8 @@ checks of the edge ALB._
       `bootstrap/terraform.tfstate` (bootstrap's state is local); re-ran `init`;
       `terraform plan` → **No changes** in both `bootstrap` and `envs/target`; old folder
       deleted; `/orders/` and `/hello/` still 200 (2026-09-26)
+- [x] `app-juice-shop` routing live: ALB listener `:3000`, `tg-app-juice-shop-legacy` /
+      `-target` (health `/`, weights 100/0); ALB SG allows 3000
 
 ### 5. Cross-account wiring
 - [x] VPC peering `pcx-0ae4efd1f16fc19be` — requested from B, accepted in A, `active`
@@ -100,7 +110,25 @@ checks of the edge ALB._
 - [ ] T1-2 `iam:PassRole` (on `mig-app-instance`) + `iam:GetInstanceProfile` for
       `mig-tf-apply` — or record the decision to apply with the admin profile
 - [ ] T1-3 Bedrock Claude access in `ap-south-1` confirmed with one call; `LLM_MODEL_ID` in `.env`
-- [ ] T1-4 `app_routes` output in `envs/target`; re-export `data/target_outputs.json`
+- [x] T1-4 `app_routes` output in `envs/target` (`path_prefix`, `priority`, `port`,
+      `listener_port`, `health_path`, `runtime`); `data/target_outputs.json` re-exported
+      **without a BOM** (the previous PowerShell export had one, which breaks Python's
+      `json.load`); verified with `json.load`
+- [ ] Juice Shop + Gitea deployed in Account A per `docs/ADDITIONAL_APPS.md` §1
+      (Nancy / Arya / Palak) — change set must show exactly 4 `Add`, and
+      `PeeringConnectionId` stays blank
+- [ ] Legacy Juice Shop IP registered in `tg-app-juice-shop-legacy`
+      (`AvailabilityZone=all`); `curl <alb>:3000/` → 200 via peering
+- [ ] Track 2: Wave 0 / expected-findings tests updated for the 2 new apps
+      (Juice Shop → Golden, Gitea → Red via `STATEFUL`)
+- [ ] Track 3: Blueprint passes `app_routes[app].runtime` into `golden_app` and
+      handles apps with a `listener_port` (no `path_prefix`)
+- [ ] `envs/target` listener rules: `lifecycle { ignore_changes = [action] }` (or
+      equivalent), otherwise the next `terraform apply` resets Cutover's weights to
+      100/0 and silently undoes a migration
+- [ ] Decide on AMI churn: golden_app reads "latest AL2023", so any apply after AWS
+      publishes a new AMI replaces running golden instances (e.g. `ignore_changes =
+      [ami]`, or pin per wave)
 - [ ] Teammates with an existing Windows clone re-checkout `*.py` / `*.tpl` / `*.yaml`
       once so the new `.gitattributes` LF rule applies (see ACCOUNT_B_SETUP §3)
 - [ ] T1-5 Every developer has CLI access to Account B + can assume `mig-agent-runner`;

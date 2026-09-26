@@ -1,4 +1,4 @@
-﻿{
+{
   "agent_runner_role_arn": {
     "sensitive": false,
     "type": "string",
@@ -18,6 +18,92 @@
     "sensitive": false,
     "type": "string",
     "value": "10.20.10.254"
+  },
+  "app_routes": {
+    "sensitive": false,
+    "type": [
+      "object",
+      {
+        "app-catalog": [
+          "object",
+          {
+            "health_path": "string",
+            "listener_port": "dynamic",
+            "path_prefix": "string",
+            "port": "number",
+            "priority": "number",
+            "runtime": "string"
+          }
+        ],
+        "app-juice-shop": [
+          "object",
+          {
+            "health_path": "string",
+            "listener_port": "number",
+            "path_prefix": "string",
+            "port": "number",
+            "priority": "number",
+            "runtime": "string"
+          }
+        ],
+        "app-orders": [
+          "object",
+          {
+            "health_path": "string",
+            "listener_port": "dynamic",
+            "path_prefix": "string",
+            "port": "number",
+            "priority": "number",
+            "runtime": "string"
+          }
+        ],
+        "app-pricing": [
+          "object",
+          {
+            "health_path": "string",
+            "listener_port": "dynamic",
+            "path_prefix": "string",
+            "port": "number",
+            "priority": "number",
+            "runtime": "string"
+          }
+        ]
+      }
+    ],
+    "value": {
+      "app-catalog": {
+        "health_path": "/catalog/health",
+        "listener_port": null,
+        "path_prefix": "/catalog",
+        "port": 8080,
+        "priority": 10,
+        "runtime": "demo-server"
+      },
+      "app-juice-shop": {
+        "health_path": "/",
+        "listener_port": 3000,
+        "path_prefix": "",
+        "port": 8080,
+        "priority": 10,
+        "runtime": "juice-shop"
+      },
+      "app-orders": {
+        "health_path": "/orders/health",
+        "listener_port": null,
+        "path_prefix": "/orders",
+        "port": 8080,
+        "priority": 30,
+        "runtime": "demo-server"
+      },
+      "app-pricing": {
+        "health_path": "/pricing/health",
+        "listener_port": null,
+        "path_prefix": "/pricing",
+        "port": 8080,
+        "priority": 20,
+        "runtime": "demo-server"
+      }
+    }
   },
   "golden_instance_profile_name": {
     "sensitive": false,
@@ -40,12 +126,14 @@
       "object",
       {
         "app-catalog": "string",
+        "app-juice-shop": "string",
         "app-orders": "string",
         "app-pricing": "string"
       }
     ],
     "value": {
       "app-catalog": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:targetgroup/tg-app-catalog-legacy/2945dbdb34c8a6b6",
+      "app-juice-shop": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:targetgroup/tg-app-juice-shop-legacy/0bac6481453cb5be",
       "app-orders": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:targetgroup/tg-app-orders-legacy/31f3b687d7be7763",
       "app-pricing": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:targetgroup/tg-app-pricing-legacy/6a5c21307a8dc2bb"
     }
@@ -61,12 +149,14 @@
       "object",
       {
         "app-catalog": "string",
+        "app-juice-shop": "string",
         "app-orders": "string",
         "app-pricing": "string"
       }
     ],
     "value": {
       "app-catalog": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:listener-rule/app/mig-edge-alb/176961faee0bc9a2/9e5e781bf6d52473/e01bf831a0a8dcfd",
+      "app-juice-shop": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:listener-rule/app/mig-edge-alb/176961faee0bc9a2/b44c4faf83a1046c/92a93e399d6deff5",
       "app-orders": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:listener-rule/app/mig-edge-alb/176961faee0bc9a2/9e5e781bf6d52473/ee5f9bc1fc550223",
       "app-pricing": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:listener-rule/app/mig-edge-alb/176961faee0bc9a2/9e5e781bf6d52473/81717f836727c7a3"
     }
@@ -105,12 +195,14 @@
       "object",
       {
         "app-catalog": "string",
+        "app-juice-shop": "string",
         "app-orders": "string",
         "app-pricing": "string"
       }
     ],
     "value": {
       "app-catalog": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:targetgroup/tg-app-catalog-target/23ffea897f6d8bad",
+      "app-juice-shop": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:targetgroup/tg-app-juice-shop-target/e95b143120ad44fe",
       "app-orders": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:targetgroup/tg-app-orders-target/319cef1246934b13",
       "app-pricing": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:targetgroup/tg-app-pricing-target/ea86754954546453"
     }
