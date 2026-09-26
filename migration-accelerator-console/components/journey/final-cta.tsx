@@ -85,7 +85,7 @@ export function FinalCta() {
   )
 
   let status: string
-  if (online === false) status = `Orchestrator offline · reference run: ${REFERENCE.run.app} went through all ${N} stages`
+  if (online === false) status = `Orchestrator offline · last recorded run: ${REFERENCE.run.app} went through all ${N} stages`
   else if (online === null) status = 'Checking the orchestrator…'
   else if (complete) status = `Pipeline complete on the live system · ${done}/${N} stages reached`
   else status = `Live system · ${done}/${N} stages reached so far — run the rest from the console`

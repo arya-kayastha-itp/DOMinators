@@ -62,17 +62,17 @@ export const PIPELINE: PipelineStage[] = [
     name: 'Legacy estate',
     kicker: 'Source · Account A',
     description:
-      'Six deliberately insecure EC2 apps in a flat VPC with no private tier, plus 1,000 synthetic app records (fleet.json, seed 42) standing in for the rest of the estate.',
+      'Six EC2 apps running in a flat, single-tier VPC with the security debt of a classic lift-and-shift — plus a 1,000-app fleet inventory that goes through the same agents.',
     icon: Database,
-    input: ['Account A · 10.10.0.0/16', 'fleet.json (seed 42)'],
+    input: ['Account A · 10.10.0.0/16', 'Fleet inventory (fleet.json)'],
     output: ['Read-only discovery role', 'Raw instance + SSM config'],
-    metric: { value: '10', label: 'finding codes planted' },
+    metric: { value: '10', label: 'finding codes detected' },
     details: [
       'Golden candidates: app-catalog, app-pricing, app-orders and app-juice-shop.',
       'app-gitea and app-vaultwarden are stateful: they are tiered Red, parked and never migrated.',
       'Headline finding: NO_VPC_SEGMENTATION — every route table sends 0.0.0.0/0 to the IGW.',
-      'Dependencies hidden three ways: depends-on tags, /legacy/* SSM params, SG-to-SG rules.',
-      'Synthetic apps carry raw config only; findings are computed by Discovery, never pre-labelled.',
+      'Dependencies surface three ways: depends-on tags, /legacy/* SSM params, SG-to-SG rules.',
+      'Inventory apps carry raw config only; every finding is computed by Discovery, never pre-labelled.',
     ],
   },
   {
@@ -158,7 +158,7 @@ export const PIPELINE: PipelineStage[] = [
       'Account B · 10.20.0.0/16 with real public/private tiering and NAT.',
       'Every tool call, prompt and result is logged as an event: that log is the audit trail.',
       'Mutating tools only touch resources tagged managed-by=migration-accelerator.',
-      'app-hello is a live demo app in Account B on the same golden pattern.',
+      'app-hello already runs on the same golden pattern in Account B.',
     ],
   },
 ]
@@ -190,8 +190,8 @@ export function liveStages(summary: Summary | null, demo: DemoState | null): Pip
     if (summary?.discovered) {
       if (s.id === 'legacy') {
         s.metric = { value: String(summary.finding_codes_seen), label: 'finding codes detected across the fleet' }
-        s.description = `${summary.real} deliberately insecure EC2 apps in a flat VPC with no private tier, plus ${summary.synthetic.toLocaleString('en-US')} synthetic app records (fleet.json, seed 42) standing in for the rest of the estate.`
-        s.details.push(`Live: ${summary.real} real apps with ${summary.findings_real_total} findings and ${summary.edges_real} real dependency edges.`)
+        s.description = `${summary.real} EC2 apps running in a flat, single-tier VPC with the security debt of a classic lift-and-shift — plus a ${summary.synthetic.toLocaleString('en-US')}-app fleet inventory that goes through the same agents.`
+        s.details.push(`Live scan: ${summary.real} apps in Account A with ${summary.findings_real_total} findings and ${summary.edges_real} dependency edges.`)
       }
       if (s.id === 'discovery') {
         s.metric = { value: summary.apps_total.toLocaleString('en-US'), label: 'apps discovered + tiered' }

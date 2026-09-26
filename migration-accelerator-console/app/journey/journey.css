@@ -58,8 +58,15 @@ html:has(.journey-root) { background: #07070a; color-scheme: dark; scrollbar-gut
 }
 .j-mono { font-family: var(--font-mono); }
 
-/* SplitText masks: keep descenders and italic overhang inside the clip. */
-.j-split-line-mask { padding-bottom: 0.08em; margin-bottom: -0.08em; }
+/* SplitText masks clip (overflow: clip) to a box as tall as the line-height,
+   which at 0.88-0.95 is shorter than the glyphs: descenders (g, p, y) and the
+   italic serif's overhang get cut. Pad the mask box out and pull the layout
+   back with matching negative margins, so nothing moves but nothing clips. */
+.j-split-line-mask,
+.j-word-mask {
+  padding: 0.04em 0.12em 0.26em 0.02em;
+  margin: -0.04em -0.12em -0.26em -0.02em;
+}
 
 /* --- Surfaces ------------------------------------------------------------ */
 .j-card {
