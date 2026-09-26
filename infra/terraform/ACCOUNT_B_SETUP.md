@@ -104,6 +104,14 @@ only code-level difference between legacy and target).
   Fixed with a `.gitattributes` pinning `*.py`, `*.sh`, `*.tpl`, `*.yaml` to
   LF. Existing Windows clones need one re-checkout of those files to pick
   it up (delete them, then `git checkout -- <files>`).
+- `module "app_hello"` used a module-level `depends_on`. That defers every
+  data source inside the module (the AMI and KMS lookups) to apply time
+  whenever anything upstream has pending changes, and an unknown AMI forces
+  replacement. The first plan that touched the ALB security group wanted to
+  **destroy and recreate `app-hello`**, even though the AMI hadn't changed.
+  Fixed by passing the golden SG name, instance profile and KMS alias as
+  value references instead: fresh builds still wait for those resources, and
+  steady-state plans no longer churn the instance.
 
 ---
 
@@ -168,6 +176,9 @@ terraform apply
 ```bash
 terraform output -json > ../../../../data/target_outputs.json   # → repo-root data/
 ```
+Run that from bash. **Windows PowerShell 5.1's `Out-File -Encoding utf8` adds a
+BOM**, and Python's `json.load` rejects a BOM. If you export from PowerShell, write
+with `[IO.File]::WriteAllText(path, text, (New-Object Text.UTF8Encoding($false)))`.
 This is what Blueprint/Cutover are supposed to read instead of
 hardcoding anything about Account B (per `docs/CONTRACTS.md`).
 
@@ -185,6 +196,32 @@ hardcoding anything about Account B (per `docs/CONTRACTS.md`).
 > both. Done and verified on the Account B owner's machine on 2026-09-26 — the first
 > plan after the move surfaced the last two bugs in §3, both now fixed. Delete the old
 > folder afterwards so a stale second copy of the bootstrap state can't diverge.
+
+---
+
+## 5b. Real apps: OWASP Juice Shop (2026-09-26)
+
+Full plan, including Account A's side, is in `docs/ADDITIONAL_APPS.md`.
+Account B changes:
+
+- `modules/edge_alb` apps can set `listener_port` (own ALB listener, one
+  `/*` rule on it) and `health_path`. Every app still has exactly one
+  listener rule, so Cutover's `ModifyRule` works the same everywhere.
+- `modules/golden_app` has a `runtime` variable (`demo-server` default,
+  `juice-shop`) that selects a vetted install template. The `juice-shop`
+  template installs Docker on AL2023 and runs `bkimminich/juice-shop:v20.2.0`
+  with host `8080` → container `3000`, so the golden SG and target groups
+  stay on 8080.
+- `envs/target`: `app-juice-shop` on ALB **port 3000**
+  (`tg-app-juice-shop-legacy` / `-target`, health check `/`, weights
+  100/0). New `app_routes` output (T1-4).
+- Applied: 6 add, 1 change (ALB SG gains 3000), 0 destroy.
+- **Smoke-tested:** a temporary `juice-shop` golden instance
+  (`i-0dd5c6a07311e3617`) went healthy in `tg-app-juice-shop-target` about
+  1 minute after launch (Docker pull through the NAT), with `/orders/` and
+  `/hello/` still 200. It was then removed with a follow-up apply
+  (2 destroyed). The target group stays empty until Blueprint migrates the
+  app.
 
 ---
 

@@ -27,7 +27,7 @@ data "aws_security_group" "golden" {
 }
 
 locals {
-  subnet_id  = var.private_subnet_ids[0]
+  subnet_id = var.private_subnet_ids[0]
   final_tags = merge(
     var.tags,
     {
@@ -57,7 +57,11 @@ resource "aws_instance" "this" {
     volume_size = 8
   }
 
-  user_data = templatefile("${path.module}/templates/user_data.sh.tpl", {
+  user_data = var.runtime == "juice-shop" ? templatefile("${path.module}/templates/juice_shop.sh.tpl", {
+    app_id = var.name
+    port   = var.port
+    image  = "bkimminich/juice-shop:v20.2.0"
+    }) : templatefile("${path.module}/templates/user_data.sh.tpl", {
     server_py   = file("${path.module}/../../../../app/server.py")
     app_id      = var.name
     served_by   = "target"

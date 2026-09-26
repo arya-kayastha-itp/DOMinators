@@ -33,6 +33,16 @@ variable "target_group_arn" {
   type        = string
 }
 
+variable "runtime" {
+  description = "Which vetted install template runs the app. Blueprint picks one (from app_routes in target_outputs.json); it never writes install steps itself."
+  type        = string
+  default     = "demo-server"
+  validation {
+    condition     = contains(["demo-server", "juice-shop"], var.runtime)
+    error_message = "runtime must be one of: demo-server, juice-shop."
+  }
+}
+
 # --- Wiring vars: filled from target_outputs.json by the Blueprint template, never by the LLM ---
 
 variable "vpc_id" {
