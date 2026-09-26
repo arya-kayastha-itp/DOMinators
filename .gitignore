@@ -113,6 +113,11 @@ crash.*.log
 data/*.db
 data/*.db-*
 generated/
+.terraform-plugin-cache/
+
+# Cutover's gate/step config has no credentials in it (see T3-C-10); it's
+# source, not secrets — same exception pattern as envs/target above.
+!agents/cutover/config.yaml
 
 # IDE files
 .vscode/

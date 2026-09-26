@@ -165,6 +165,15 @@ def save_blueprint(b: BlueprintResult) -> None:
     _write("INSERT OR REPLACE INTO blueprints (app_id, body) VALUES (?, ?)", [(b.app_id, b.to_json())])
 
 
+def save_blueprints(blueprints: list[BlueprintResult]) -> None:
+    """Batch form of save_blueprint, one transaction (T3-B-10: 1,000 synthetic
+    dry runs in one write instead of 1,000 — additive, no existing signature changed)."""
+    _write(
+        "INSERT INTO blueprints (app_id, body) VALUES (?, ?) ON CONFLICT(app_id) DO UPDATE SET body=excluded.body",
+        [(b.app_id, b.to_json()) for b in blueprints],
+    )
+
+
 def get_blueprint(app_id: str) -> BlueprintResult | None:
     row = conn().execute("SELECT body FROM blueprints WHERE app_id = ?", (app_id,)).fetchone()
     return BlueprintResult.model_validate_json(row[0]) if row else None
@@ -172,6 +181,15 @@ def get_blueprint(app_id: str) -> BlueprintResult | None:
 
 def save_cutover(c: CutoverRun) -> None:
     _write("INSERT OR REPLACE INTO cutovers (app_id, body) VALUES (?, ?)", [(c.app_id, c.to_json())])
+
+
+def save_cutovers(cutovers: list[CutoverRun]) -> None:
+    """Batch form of save_cutover, one transaction (T3-C-9: a whole simulated
+    wave in one write instead of one per app — additive, no existing signature changed)."""
+    _write(
+        "INSERT INTO cutovers (app_id, body) VALUES (?, ?) ON CONFLICT(app_id) DO UPDATE SET body=excluded.body",
+        [(c.app_id, c.to_json()) for c in cutovers],
+    )
 
 
 def get_cutover(app_id: str) -> CutoverRun | None:

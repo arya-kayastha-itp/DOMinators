@@ -1,0 +1,45 @@
+terraform {
+  required_version = ">= 1.6"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+
+  # `terraform init -backend=false` (used for local validate-only runs) skips
+  # this regardless of what it says, so it's safe to always render it —
+  # real applies and dry-run validates share one template either way.
+  backend "s3" {
+    bucket         = "mig-tfstate-408336117553"
+    key            = "generated/{{ app_id }}/terraform.tfstate"
+    region         = "{{ region }}"
+    dynamodb_table = "mig-tfstate-lock"
+  }
+}
+
+provider "aws" {
+  region = "{{ region }}"
+}
+
+module "app" {
+  source           = "../../infra/terraform/modules/golden_app"
+  name             = "{{ inputs.name }}"
+  port             = {{ inputs.port }}
+  instance_type    = "{{ inputs.instance_type }}"
+  runtime          = "{{ inputs.runtime }}"
+  env = {
+{% for k, v in inputs.env.items() %}
+    {{ k }} = "{{ v }}"
+{% endfor %}
+  }
+  tags = {
+{% for k, v in inputs.tags.items() %}
+    "{{ k }}" = "{{ v }}"
+{% endfor %}
+  }
+  target_group_arn   = "{{ target_group_arn }}"
+  vpc_id             = "{{ vpc_id }}"
+  private_subnet_ids = [{% for s in private_subnet_ids %}"{{ s }}"{{ ", " if not loop.last }}{% endfor %}]
+  path_prefix        = "{{ path_prefix }}"
+}
