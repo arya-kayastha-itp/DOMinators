@@ -348,7 +348,7 @@ Resources:
       UserData:
         Fn::Base64: |
           #!/bin/bash
-          amazon-linux-extras install -y docker
+          dnf install -y docker
           systemctl enable --now docker
           docker run -d --name app-juice-shop --restart always -p 8080:3000 bkimminich/juice-shop:v20.2.0
 
@@ -404,7 +404,7 @@ Resources:
       UserData:
         Fn::Base64: |
           #!/bin/bash
-          amazon-linux-extras install -y docker
+          dnf install -y docker
           systemctl enable --now docker
           mkdir -p /opt/gitea
           docker run -d --name app-gitea --restart always -p 8080:3000 \

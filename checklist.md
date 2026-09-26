@@ -116,11 +116,23 @@ checks of the edge ALB._
       `json.load`); verified with `json.load`
 - [x] `JuiceShopSG`/`JuiceShopInstance`/`GiteaSG`/`GiteaInstance` + their 2
       `PrivateIp` outputs added to `account-a-v2.yaml`, `account-a-all-in-one.yaml`
-      and `04-legacy-apps.yaml` (Arya, both apps in one commit) — repo only, not
-      yet applied to the live stack
-- [ ] Juice Shop + Gitea deployed in Account A per `docs/ADDITIONAL_APPS.md` §1
-      (Nancy) — change set must show exactly 4 `Add`, and `PeeringConnectionId`
-      stays blank
+      and `04-legacy-apps.yaml` (Arya, both apps in one commit)
+- [x] Change set applied to `mig-legacy-all` (Arya, via console access to Nancy's
+      account) — exactly 4 `Add` rows, `PeeringConnectionId` left blank,
+      `UPDATE_COMPLETE` reached (2026-09-26)
+- [x] Bug found + fixed: both apps' `UserData` used `amazon-linux-extras install
+      -y docker`, but the live legacy AMI is AL2023, not true Amazon Linux 2 as
+      the `OldAmiId` parameter's description claims (already flagged once in
+      `TRACK_1_CLOUD.md`, missed again here). `amazon-linux-extras` doesn't exist
+      on AL2023 — confirmed via the instance system log (`amazon-linux-extras:
+      command not found`, then `docker: command not found`) — so Docker never
+      installed and both apps were unreachable (port 8080 timed out). Fixed to
+      `dnf install -y docker` in all 3 CloudFormation templates and
+      `docs/ADDITIONAL_APPS.md`
+- [ ] Live `mig-legacy-all` stack updated with the corrected `UserData` (will
+      show `Replacement: True` on `JuiceShopInstance`/`GiteaInstance` — expected,
+      they're fresh apps with no data to lose) and both apps verified reachable
+      on port 8080
 - [ ] Legacy Juice Shop IP registered in `tg-app-juice-shop-legacy`
       (`AvailabilityZone=all`); `curl <alb>:3000/` → 200 via peering
 - [ ] Track 2: Wave 0 / expected-findings tests updated for the 2 new apps
