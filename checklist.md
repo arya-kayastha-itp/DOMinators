@@ -8,8 +8,8 @@ branch and every PR updates this file in the same commit. Tick only what is done
 verified; add `[ ]` items for anything new you discover. Task IDs (T1-x, T2-x, …)
 point to the track docs in [docs/](docs/00_DELEGATION_MAP.md).
 
-_Last verified: 2026-09-26, against the repo, both setup records, and live `curl`
-checks of the edge ALB._
+_Last verified: 2026-09-26, against the repo, both setup records, live `curl`
+checks of the edge ALB, and headless-browser tests of the console._
 
 ---
 
@@ -444,19 +444,36 @@ checks of the edge ALB._
 - [ ] T4-O-10 API tests on stub mode
 - [ ] T4-S-1 `Makefile` (`run`, `demo-reset`, `demo-check`, `e2e`, `destroy`)
 
-### 14. Dashboard (frontend) — Track 4 / C2
-- [ ] T4-F-1 Scaffold + colour tokens
-- [ ] T4-F-2 Typed API client + SSE hook
-- [ ] T4-F-3 Mock API from fixtures
-- [ ] T4-F-4 Fleet tab
-- [ ] T4-F-5 Activity tab
-- [ ] T4-F-6 Plan tab (capacity slider + projection)
-- [ ] T4-F-7 Blueprint diff tab
-- [ ] T4-F-8 Cutover live chart + rollback banner
-- [ ] T4-F-9 Dependencies graph
-- [ ] T4-F-10 Impact panel
-- [ ] T4-F-11 Demo controls (`?demo=1`)
-- [ ] T4-F-12 Loading/error states everywhere; projector test
+### 14. Dashboard (frontend) — Track 4 / C2 — `migration-accelerator-console/`
+Built as a Next.js 16 console on a contract-shaped mock layer. Verified 2026-09-26 in headless
+Edge: every route renders with no console errors, no horizontal overflow at 320/768/1024/1440 px,
+both themes, keyboard skip link, and the demo flows below.
+- [x] T4-F-1 Scaffold + design tokens (light/dark, fixed tier/env colours), collapsible sidebar,
+      breadcrumbs, command palette (Ctrl K), Copilot panel (Ctrl J), toasts
+- [ ] T4-F-2 Typed API client + SSE hook — **not yet**: screens read the in-browser provider
+- [ ] T4-F-3 Mock API from `fixtures/` — `fixtures/` now exists on main, but the console still
+      reads its own contract-shaped mock data in `lib/data/*`; switching over is still to do
+- [x] T4-F-4 Fleet tab (1,003 apps, search/filter/sort/pagination, CSV export, detail drawer)
+- [x] T4-F-5 Activity tab (filters, pause/resume, expandable payloads, JSON export)
+- [x] T4-F-6 Plan tab (live capacity slider → client-side planner; cap 8 → Sep 2027 ✓, cap 5 → misses)
+- [x] T4-F-7 Blueprint diff tab (real golden_app main.tf per app, annotated fixes, gaps, bad-wave warning)
+- [x] T4-F-8 Cutover live chart + gates + rollback banner — verified: 3/3 clean cutovers
+      MIGRATED; bad wave auto-rolls back at 10% with legacy restored in ~0.8 s
+- [x] T4-F-9 Dependencies graph (3D, live chain / fleet sample / 2-hop focus, accessible edge list)
+- [x] T4-F-10 Impact panel (ROI calculator, throughput lanes, posture, corrected real-vs-simulated)
+- [x] T4-F-11 Demo controls (`?demo=1`)
+- [ ] T4-F-12 Loading/error states are in; **projector-resolution test still to do**
+- [x] Console committed to git (`.gitignore` excludes `node_modules/`, `.next/` and
+      `*.tsbuildinfo`)
+- [ ] Console wired to the orchestrator (replace the `run*` simulations with `POST /runs/*` + SSE)
+- [x] `/journey` scroll-driven landing page (GSAP + ScrollTrigger + Lenis): preloader, WebGL hero
+      (desktop only), pinned pipeline with a self-drawing path and a travelling packet, FLIP deep-dive
+      panel, simulated live run with the bad-wave rollback, success finale. Stages come from one config
+      (`lib/journey/pipeline.ts`). Verified 2026-09-27 in headless Edge at 1440 px and 390 px and with
+      reduced motion (no pinning, no Lenis, no WebGL); `next build` passes
+- [ ] `/journey`: frame-rate check on real hardware (headless runs can't measure 60 fps)
+- [ ] `/journey`: link it from the console (right now it is only reachable by URL)
+- [ ] Track 3: adopt the statistical share gate in `gates.py` (see TRACK_3 T3-C-4)
 
 ### 15. Gates & demo readiness (everyone)
 - [ ] G0 (H+2) contract freeze met
