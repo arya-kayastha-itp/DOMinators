@@ -34,46 +34,53 @@ Data migration, decommissioning, licensing and notifications are **out of scope*
 
 | Doc | Read it if you are… |
 |---|---|
-| [docs/PLAN.md](docs/PLAN.md) | Everyone. 48-hour schedule, checkpoints, owners, risks |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Everyone. Two-account design, components, tech stack |
-| [docs/FLOW.md](docs/FLOW.md) | Everyone. End-to-end flow, app lifecycle, sequence diagrams |
-| [docs/CONTRACTS.md](docs/CONTRACTS.md) | Agent devs. Shared JSON schemas, **frozen at hour 2** |
-| [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) | Presenter. 6-minute judge demo, minute by minute |
-| [infra/README.md](infra/README.md) | C1, C2. Account setup, Terraform layout, teardown |
-| [agents/README.md](agents/README.md) | A1–A4. Shared agent framework, Bedrock, tool-calling pattern |
-| [agents/discovery/README.md](agents/discovery/README.md) | A1 |
-| [agents/planning/README.md](agents/planning/README.md) | A2 |
-| [agents/blueprint/README.md](agents/blueprint/README.md) | A3 |
-| [agents/cutover/README.md](agents/cutover/README.md) | A4 |
-| [data/README.md](data/README.md) | A2. Synthetic fleet generator |
-| [dashboard/README.md](dashboard/README.md) | C2, A2. Dashboard views and API |
+| [AGENTS.md](../AGENTS.md), [CLAUDE.md](../CLAUDE.md) | Everyone, and every AI agent — **mandatory before any work** |
+| [checklist.md](../checklist.md) | Everyone. What's done vs. to do; update it with every push |
+| [00_DELEGATION_MAP.md](00_DELEGATION_MAP.md) | Everyone. Tracks, gates, who depends on whom |
+| [PLAN.md](PLAN.md) | Everyone. Original 48-hour schedule, risks, cut list |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Everyone. Two-account design, components, tech stack |
+| [FLOW.md](FLOW.md) | Everyone. End-to-end flow, app lifecycle, sequence diagrams |
+| [CONTRACTS.md](CONTRACTS.md) | Agent devs. Shared JSON schemas, **frozen at G0** |
+| [DEMO_SCRIPT.md](DEMO_SCRIPT.md) | Presenter. 6-minute judge demo, minute by minute |
+| [infra/README.md](../infra/README.md) | Infra. Account setup, Terraform layout, teardown |
+| [ACCOUNT_A_SETUP.md](../infra/cloudformation/legacy/ACCOUNT_A_SETUP.md) | Account A (legacy) build record — CloudFormation |
+| [ACCOUNT_B_SETUP.md](../infra/terraform/ACCOUNT_B_SETUP.md) | Account B (target) build record — Terraform |
+| [agents/README.md](../agents/README.md) | A1–A4. Shared agent framework, Bedrock, tool-calling pattern |
+| [agents/discovery/README.md](../agents/discovery/README.md) | A1 |
+| [agents/planning/README.md](../agents/planning/README.md) | A2 |
+| [agents/blueprint/README.md](../agents/blueprint/README.md) | A3 |
+| [agents/cutover/README.md](../agents/cutover/README.md) | A4 |
+| [data/README.md](../data/README.md) | A2. Synthetic fleet generator |
+| [dashboard/README.md](../dashboard/README.md) | C2. Dashboard views and API |
 
 ## Repo layout
 
 ```
-cloud-migration-accelerator/
-├── docs/                 # plan, architecture, flow, contracts, demo script
-├── infra/terraform/
-│   ├── modules/          # network, legacy_app, golden_app, edge_alb, iam_cross_account
-│   └── envs/             # legacy (Account A), target (Account B)
+DOMinators/                  # repo root — all code lives here, docs/ holds documents only
+├── docs/                    # plan, architecture, flow, contracts, tracks, demo script
+├── infra/
+│   ├── cloudformation/legacy/   # Account A (legacy) — CloudFormation, live
+│   └── terraform/               # Account B (target) — Terraform, live
+│       ├── bootstrap/           # S3 state bucket + DynamoDB lock table
+│       ├── modules/             # network, golden_app, edge_alb, iam_cross_account
+│       └── envs/target/
+├── app/server.py            # the one app codebase both environments run
 ├── agents/
-│   ├── common/           # Bedrock client, tool registry, state store, event bus
-│   ├── discovery/
-│   ├── planning/
-│   ├── blueprint/
-│   └── cutover/
-├── orchestrator/         # FastAPI: runs agents, serves state + SSE events
-├── data/                 # synthetic fleet generator + generated fleet.json
-├── dashboard/            # React UI
-└── generated/            # Terraform written by the Blueprint agent (git-ignored)
+│   ├── common/              # models, store, events, aws, llm, tools, loop
+│   ├── discovery/  planning/  blueprint/  cutover/
+├── fixtures/                # contract-shaped sample data (G0)
+├── orchestrator/            # FastAPI: runs agents, serves state + SSE events
+├── data/                    # target_outputs.json, fleet generator + fleet.json
+├── dashboard/               # React UI
+└── generated/               # Terraform written by the Blueprint agent (git-ignored)
 ```
 
 ## Quick start (once built)
 
 ```bash
-# 1. Infra (C1/C2)
-cd infra/terraform/envs/legacy && terraform apply     # AWS_PROFILE=mig-legacy
-cd ../target && terraform apply                        # AWS_PROFILE=mig-target
+# 1. Infra — both accounts are already live; see the two setup records for rebuilds
+#    Account A: infra/cloudformation/legacy/ACCOUNT_A_SETUP.md
+#    Account B: cd infra/terraform/envs/target && terraform init -backend-config=backend-config.hcl && terraform apply
 
 # 2. Synthetic data
 python data/generate_fleet.py --count 1000 --seed 42
@@ -83,10 +90,10 @@ uvicorn orchestrator.main:app --port 8000
 cd dashboard && npm run dev
 ```
 
-## Teardown (do not skip)
+## Teardown (do not skip) — target before legacy
 
 ```bash
 cd infra/terraform/envs/target && terraform destroy
-cd ../legacy && terraform destroy
+aws cloudformation delete-stack --profile mig-legacy --stack-name <legacy stack name>
 rm -rf generated/*
 ```

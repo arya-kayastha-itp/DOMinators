@@ -1,157 +1,196 @@
-# Track 2 — Agents: Intelligence & Orchestration
+# Track 2 — Agents: Intelligence & Framework Core
 
-**Members:** A1, A2 (2 people). **Owns:** Discovery agent, Planning agent, synthetic fleet generator, the shared agent framework everyone builds on, the orchestrator API, and integration-captain duty for the whole project.
+**Members:** A1, A2. **Owns:** the contract freeze (G0), `fixtures/`, the framework
+core (`agents/common/models.py`, `store.py`, `events.py`, `aws.py`), the Discovery
+agent, the Planning agent, the synthetic fleet generator, and integration-captain duty.
 
-This track answers "what exists, and what order do we do it in" — and, because that work is deliberately lighter per-agent than Track 3's, also carries the plumbing that holds the whole system together.
+**What changed from the original plan:** the cloud is done, so this track now
+builds against a *live* Account A from G2. The **orchestrator API moved to Track 4
+(C1)**, and so did `llm.py` / `tools.py` / `loop.py`. That frees A2 to own the
+contract freeze, Planning and integration without being the bottleneck for everything.
+
+All paths are relative to the repo root (see the delegation map).
+Clock: H0 = kickoff of this phase. Gates: G0 H+2, G1 H+8, G2 H+16, G3 H+24.
 
 ---
 
-## Internal split
+## Internal split and schedule
 
-| | A1 (Discovery) | A2 (Planning + Framework + Orchestrator) |
+| | A1 — Discovery (+ `aws.py`) | A2 — Contracts, store, Planning, fleet, integration |
 |---|---|---|
-| Hours 0–2 | Review the shared framework as A2 builds it | **Lead the contract freeze** (30-min team walkthrough, then lock 5 schemas). Commit `fixtures/` |
-| Hours 2–8 | Build scanner against fixtures | Build `agents/common/`. Build fleet generator v1 (1,000 records) |
-| Hours 8–20 | Switch to real cross-account scan; build real dependency graph; synthetic ingest at scale | Build the Planning agent itself |
-| Hours 20–32 | Hand agent to A2 for orchestrator wiring; support integration | Wire the orchestrator so the full chain runs as one pipeline, SSE live to UI; **integration captain** — pull in A3/A4's real agents |
-| Hours 32–48 | Hardening, rehearsal | Integration captain through first full dry run and rehearsals; keep `STATUS.md` current |
+| **H0–2** | `agents/common/aws.py` signatures + two-hop session. Review `models.py` | **Lead G0**: `models.py`, store/events signatures, agent entry-point stubs, `fixtures/` — walk all 6 people through it in 30 min |
+| **H2–8** | Scanner against recorded AWS responses → rules → dependencies → tiering, all with `LLM_BACKEND=off`; CLI | `store.py` + `events.py` implemented; fleet generator v1; Planning v1 on fixtures |
+| **H8–12** | Real scan of Account A (needs T1-5 access). Hand real `AppRecord`s to A3 by **H+12** | Planning complete + tests; tune the fleet generator against A1's tiering to land ~60/25/15 |
+| **H12–16** | Synthetic ingest at scale; LLM borderline tiering (once Bedrock is ready); event batching | Optional LLM rationale; pair with C1 to wire Discovery + Planning into the orchestrator |
+| **H16–24** | Support integration; review the Fleet + Dependencies tabs with C2 | **Integration captain** through the G3 dry run; `STATUS.md` current |
+| **H24–36** | Hardening; Flow-Log stretch only if everything else is green | Rehearsals; triage "must fix" vs. "narrate around" |
 
-**Why this pairing:** Discovery feeds Planning directly (`AppRecord[]`, `Tiering[]`, edges → `WavePlan`), so they're already a pipeline pair. Planning is deliberately rule-based and fast specifically to leave A2 with slack for the framework and integration work — that's not incidental, it's the reason this track can absorb 4 sub-jobs instead of 1.
+**Why this pairing still works:** Discovery → Planning is one pipeline seam
+(`AppRecord[]`, `Tiering[]`, `Edge[]` → `WavePlan`), and Planning stays
+rule-based and fast on purpose, leaving A2 slack for G0 and integration.
 
 ---
 
-## The one deadline this whole 6-person team hangs off
+## G0 — the contract freeze (H+2, A2 leads) — the one deadline that must not slip
 
-**Hour 2: contract freeze.** This track owns it. After hour 2, the 5 schemas below can't change without A2's sign-off plus the affected track's. If this slips, Track 1 and Track 3 lose the ability to build in parallel — this is the single point of failure in the entire plan.
+Everything in [CONTRACTS.md](CONTRACTS.md) **including the addendum** becomes code
+and fixtures. After G0, a shape change needs A2's sign-off plus the affected owner,
+plus a fixture update in the same PR.
 
-```
-AppRecord   — Discovery's output, everyone's input
-Tiering     — Discovery's output
-WavePlan    — Planning's output, Track 3's input
-BlueprintResult — Track 3 (Blueprint) output, Track 3 (Cutover) input
-CutoverRun  — Track 3 (Cutover) output
-```
+| ID | Deliverable | Notes |
+|---|---|---|
+| T2-G0-1 | `agents/common/models.py` (Pydantic v2) | `AppRecord`, `Tiering`, `Edge`, `WavePlan`, `BlueprintResult` (with `diff.annotations`), `CutoverRun`, `Event`, `TrafficSample`, `DiscoverySummary`. Enums for tier, status, event type, finding code |
+| T2-G0-2 | `store.py` + `events.py` **signatures** (bodies may be `NotImplementedError` at G0) | Exactly the store API in the CONTRACTS addendum |
+| T2-G0-3 | Agent entry-point stubs | `agents/{discovery,planning,blueprint,cutover}/__init__.py: run(...)` returning fixture objects, so C1 can wire the orchestrator immediately |
+| T2-G0-4 | `fixtures/` | `apps.json` (3 real apps, hand-written from the live account: private IPs `10.10.1.61` catalog, `10.10.1.138` pricing, `10.10.1.30` orders, the real AMI, real SG rules, SSM values), `tiers.json`, `edges.json`, `plan.json`, `summary.json`, plus — co-written with A3/A4 — `blueprint_app-catalog.json`, `cutover_app-catalog.json` (MIGRATED), `cutover_app-orders.json` (ROLLED_BACK), `traffic_app-orders.json`, and `events.jsonl` (a scripted ~60-event demo run for C1's stub orchestrator and C2's dashboard) |
+| T2-G0-5 | `agents/common/aws.py` signatures (A1) | `target()`, `agent_runner()`, `legacy()`, `tf_apply_env()`, `target_outputs()` |
+| T2-G0-6 | Decisions D1 + D2 below, written into the fixtures | |
 
-Full JSON shapes (unchanged from the original contracts doc):
+### Decisions to settle at G0 (recommendations given)
 
-```json
-// AppRecord
-{
-  "app_id": "app-orders", "source": "real", "name": "Orders API",
-  "owner": "team-commerce", "business_unit": "Retail",
-  "runtime": {"type": "ec2", "instance_ids": ["i-0abc"], "ami_id": "ami-0old",
-              "ami_age_days": 912, "instance_type": "t3.micro", "port": 8080, "stateful": false},
-  "network": {"vpc_id": "vpc-legacy", "vpc_has_private_subnet": false, "subnet_public": true, "public_ip": true,
-              "private_ip": "10.10.1.23",
-              "sg_ingress": [{"port": 22, "cidr": "0.0.0.0/0"}, {"port": 8080, "cidr": "0.0.0.0/0"}]},
-  "storage": {"ebs_encrypted": false, "volume_gb": 8},
-  "metadata": {"imds_v2_required": false},
-  "config": {"env": {"PRICING_URL": "http://10.10.1.40:8080"}},
-  "depends_on": ["app-pricing"], "tags": {"depends-on": "app-pricing"},
-  "findings": ["SG_OPEN_SSH", "SG_OPEN_APP", "EBS_UNENCRYPTED", "IMDSV1", "OLD_AMI", "NO_VPC_SEGMENTATION", "PUBLIC_IP", "MISSING_TAGS", "HARDCODED_IP"],
-  "status": "DISCOVERED"
-}
-```
+- **D1 — `HARDCODED_IP` on `app-pricing`.** `/legacy/app-pricing/CATALOG_URL` contains an IP, so the literal rule fires on pricing too, although the docs list it only for orders. **Recommend: accept it** — it's genuinely true of the account. Update `Cloud_ENVIRONMENTS.md` §4 in the same PR.
+- **D2 — do `MISSING_TAGS` apps go Gray?** The tiering rule says "a fix needing a human decision (unknown `cost-center`) → GRAY", which would make pricing and orders Gray, but the contracts show all 3 real apps Golden. **Recommend:** `MISSING_TAGS` is auto-fixable with a flagged gap (Blueprint defaults + `flag_gap`), so it doesn't force Gray on its own. The "human decision" trigger applies to things like `license=commercial` without BYOL, or non-EC2 runtimes (ecs/unknown) in the synthetic fleet. All 3 real apps end up GOLDEN.
 
-```json
-// Tiering
-{"app_id": "app-orders", "tier": "GOLDEN", "score": 84,
- "reasons": ["stateless", "matches golden_app pattern", "all findings auto-fixable"],
- "risk_summary": "Publicly exposed with SSH open; fixes are standard and automatable.",
- "decided_by": "rules"}
-```
+---
 
-```json
-// WavePlan
-{"plan_id": "plan-001", "generated_at": "2026-10-03T10:00:00Z",
- "capacity_per_wave": 40, "waves_per_week": 3,
- "waves": [
-   {"wave": 0, "name": "Pilot", "start": "2026-10-05",
-    "app_ids": ["app-catalog", "app-pricing", "app-orders"],
-    "tier_mix": {"GOLDEN": 3}, "rationale": "Real pilot apps; providers first."},
-   {"wave": 1, "start": "2026-10-07", "app_ids": ["syn-00012"], "tier_mix": {"GOLDEN": 40}}
- ],
- "parked": ["syn-00991"],
- "projection": {"apps_total": 1003, "apps_schedulable": 871, "projected_finish": "2027-09-14",
-                "apps_per_day": 5.7, "meets_target_2027": true}}
-```
-
-## Shared framework (`agents/common/`) — both tracks 2 and 3 build inside this
+## Framework core (both tracks and Track 4 build on this)
 
 ```
 agents/common/
-├── llm.py      # Bedrock client wrapper + fallback to Anthropic API
-├── tools.py    # @tool decorator, registry, arg validation, allowlist guard
-├── loop.py     # run_agent(system, user, tools, max_turns) tool-calling loop
-├── models.py   # Pydantic models from the contracts above
-├── store.py    # SQLite: apps, tiers, edges, waves, blueprints, cutovers, events
-├── events.py   # emit(agent, app_id, type, payload)
-└── aws.py      # sessions: target(), legacy() via AssumeRole
+├── models.py   # A2 — Pydantic models from CONTRACTS.md (+ addendum)
+├── store.py    # A2 — SQLite (WAL mode, one file, thread-safe): apps, tiers, edges, plans, blueprints, cutovers, traffic, events, flags
+├── events.py   # A2 — emit()/events_since(); every emit also persists, orchestrator streams from the table
+├── aws.py      # A1 — sessions + target_outputs() loader + assert_managed(arn) guard
+├── llm.py      # C1 (Track 4) — Bedrock / Anthropic / off / mock backends, 20 s timeout
+├── tools.py    # C1 (Track 4) — @tool registry, arg validation, allowlist guard (uses aws.assert_managed)
+└── loop.py     # C1 (Track 4) — run_agent(system, user, tools, max_turns); emits TOOL_CALL / LLM_FALLBACK
 ```
 
-Rules every agent (in both tracks) follows: deterministic first, LLM second — must produce a usable result with `LLM_BACKEND=off`; structured output only, forced through a tool call and Pydantic-validated; mutating tools guarded to Account B resources tagged `managed-by=migration-accelerator`; every meaningful step emits an event; every agent is idempotent (upsert, not insert); every LLM call has a 20s timeout with a rules fallback.
+| ID | Owner | Task | By |
+|---|---|---|---|
+| T2-FW-1 | A2 | `store.py` implemented + unit tests (idempotent upserts, `traffic_window`, `reset`) | H+5 |
+| T2-FW-2 | A2 | `events.py` implemented (monotonic ids, JSON payloads, batch emit) | H+5 |
+| T2-FW-3 | A1 | `aws.py`: `target()` from `TARGET_PROFILE`; `agent_runner()` assumes `AGENT_RUNNER_ROLE_ARN`; `legacy()` does the **two-hop** (runner → `LEGACY_ROLE_ARN` + `LEGACY_EXTERNAL_ID`) with credentials refreshed before the 1 h expiry; `tf_apply_env()` returns env vars for a terraform subprocess; `target_outputs()` reads `data/target_outputs.json` (cached); `assert_managed(arn)` checks the `managed-by=migration-accelerator` tag | H+4 |
+| T2-FW-4 | A2 | `pytest agents/` runs on fixtures with `LLM_BACKEND=mock` in < 30 s | H+8 |
+
+Rules every agent follows (unchanged): deterministic first, LLM second — must
+produce a usable result with `LLM_BACKEND=off`; structured output only (forced tool
+call, Pydantic-validated, retry once, then rules); mutating tools guarded to
+Account B resources tagged `managed-by=migration-accelerator`; every meaningful step
+emits an event; idempotent (upsert, never insert); every LLM call has a 20 s timeout
+with a rules fallback. **No secrets in prompts or in the repo** — role ARNs,
+ExternalId and model ID come from `.env`.
 
 ---
 
 ## A1's job: Discovery
 
-**Input:** legacy account (via AssumeRole) + `data/fleet.json`. **Output:** `AppRecord[]`, `Tiering[]`, dependency edges.
+**Input:** Account A via the two-hop role + `data/fleet.json`. **Output:** `AppRecord[]`,
+`Tiering[]`, `Edge[]` in the store, `DiscoverySummary` in the `DISCOVERY_DONE` event.
 
-Scan (EC2, SGs, volumes, images, route tables, SSM params) → normalize → run 10 finding rules (`SG_OPEN_SSH`, `SG_OPEN_APP`, `EBS_UNENCRYPTED`, `IMDSV1`, `OLD_AMI`, `NO_VPC_SEGMENTATION`, `PUBLIC_IP`, `MISSING_TAGS`, `HARDCODED_IP`, `STATEFUL`) → map dependencies 3 ways (tag, SSM/env value, SG reference) → ingest synthetic fleet through the *same* logic → tier (rules first, score-based: start 100, deduct for stateful/-60, unknown runtime/-40, >5 deps/-15, hardcoded IP/-10, each unfixable finding/-10; GOLDEN ≥75, GRAY 40–74, RED <40 or stateful; borderline ±5 goes to Claude).
+### Tasks
 
-Target distribution on the synthetic fleet: ~60% Golden / 25% Gray / 15% Red. Performance: real scan <10s, synthetic tiering <3s, batch `APP_DISCOVERED` events by 50.
+| ID | Task |
+|---|---|
+| T2-D-1 | `scanner.py` — takes injected boto3 clients so it runs on **recorded responses** (`fixtures/aws/*.json`, via `botocore.Stubber`) before AWS access exists. Calls, all paginated: `describe_instances` (running only), `describe_security_groups`, `describe_volumes`, `describe_images(ImageIds=…, IncludeDeprecated=True)`, `describe_subnets`, `describe_route_tables`, `ssm.get_parameters_by_path("/legacy/", Recursive=True)` |
+| T2-D-2 | `normalize.py` — one `AppRecord` per app, grouped by the `app` tag, **falling back to `Name`** (the live legacy apps only have `Name`). `config.env` built from `/legacy/<app>/<KEY>` SSM params |
+| T2-D-3 | `rules.py` — the 10 finding rules as pure functions, each unit-tested (table below) |
+| T2-D-4 | `deps.py` — union of 3 signals into `Edge{from, to, signals}` (consumer → provider): `depends-on` tag; SSM/env value containing another app's private IP or name; provider SG ingress whose source is the consumer's SG |
+| T2-D-5 | `tiering.py` — score rules (start 100: `STATEFUL` −60, unknown runtime −40, > 5 deps −15, `HARDCODED_IP` −10, each non-auto-fixable finding −10; GOLDEN ≥ 75, GRAY 40–74, RED < 40 or stateful or unlicensed commercial). Borderline (±5 of a threshold) → Claude via `submit_tiering`, `decided_by=llm`; max 8 concurrent, 20 s timeout, rules on failure |
+| T2-D-6 | `synthetic.py` — load `fleet.json` and run the **same** rules → deps → tiering (no scan) |
+| T2-D-7 | `run(scope)` + CLI `python -m agents.discovery --scope real|synthetic|all`; events: `DISCOVERY_STARTED`, `APP_DISCOVERED` (per app for real, batches of 50 for synthetic), `DISCOVERY_DONE{summary}`; statuses → `TIERED` |
+| T2-D-8 | Switch to the real account (H+8), then record the real responses into `fixtures/aws/` for regression tests |
+| T2-D-9 | Oracle test: an integration test that compares computed findings with the legacy instances' `findings` tag. The tag is **never** an input to the rules |
 
-## A2's job: Planning + synthetic data + orchestrator
+### Finding rules — with the gotchas the live account actually has
 
-**Planning** — input `AppRecord[]`/`Tiering[]`/edges, output `WavePlan`. Deliberately rule-based: exclude Red → build dependency graph → break cycles into move-together units → cluster small tightly-coupled groups → topological sort (providers before consumers) → pack waves (Wave 0 = the 3 real apps, always) respecting `capacity_per_wave` → schedule with freeze windows → project finish date and `apps_per_day`. Optional LLM rationale text, template-string fallback. Must plan 1,000 apps in <1s without the LLM.
-
-**Synthetic fleet generator** — `python data/generate_fleet.py --count 1000 --seed 42`. Fixed seed always. Faker for names/teams, scale-free dependency graph (`barabasi_albert_graph`), tuned finding probabilities to land ~60/25/15 after A1's tiering.
-
-**Orchestrator API** — `POST /runs/{discovery,planning,blueprint/{id},cutover/{id},wave/{n}}`, `GET /apps`, `/plan`, `/blueprints/{id}`, `/cutovers/{id}`, `/events` (SSE), `POST /demo/bad-wave`, `POST /demo/reset`.
-
-**Integration captain** — keeps `STATUS.md` (Working / Broken / Next) current continuously. Any blocker older than 30 minutes escalates here (agents questions) or to Track 1 (infra questions).
-
----
-
-## Interface to the other two tracks
-
-### What Track 2 needs, and from whom
-
-| From | What | By hour | If late |
-|---|---|---|---|
-| Track 1 | `mig-discovery-readonly` role, tested | 8 | A1 stays on fixtures for the real-scan step only — keeps building everything else |
-| Track 1 | 3 real legacy apps with genuine findings + dependencies | 8 | Same — validate against fixtures until then |
-| Track 1 | Bedrock model ID once granted | ~12 (not blocking) | Default to `LLM_BACKEND=off` |
-
-### What Track 2 delivers, and to whom
-
-| To | What | By hour |
+| Code | Condition | Gotcha |
 |---|---|---|
-| Track 1 & 3 | Frozen contracts + fixtures | **2** — the hardest deadline on the team |
-| Track 1 & 3 | `agents/common/` framework | 8 |
-| Track 3 (Blueprint) | Real `AppRecord[]` per app | 20 |
-| Track 3 (Cutover, via Blueprint) | Confirmed real cross-account discovery working | 20 |
-| Track 1 (Dashboard) | Fixture-then-real data for Fleet/Dependencies/Plan tabs | 8 (fixtures), 20 (real) |
+| `SG_OPEN_SSH` | Ingress on 22 from `0.0.0.0/0` | |
+| `SG_OPEN_APP` | Ingress on the app port from `0.0.0.0/0` | App port = the port the SGs open other than 22 (8080) |
+| `EBS_UNENCRYPTED` | Any attached volume `Encrypted=false` | |
+| `IMDSV1` | `MetadataOptions.HttpTokens != "required"` | |
+| `OLD_AMI` | AMI `CreationDate` > 365 days ago | **Must pass `IncludeDeprecated=True`** — the legacy AMI is deprecated and is otherwise invisible. If the image still can't be described, emit the finding with `ami_age_days: null` and a reason, never silently skip |
+| `NO_VPC_SEGMENTATION` | No subnet in the VPC has an **effective** route table without a `0.0.0.0/0 → igw-*` route | Effective RT = the subnet's explicit association, else the VPC's main RT. The live VPC has an unused main RT with no IGW route — a naive "any RT without IGW" check wrongly says "segmented" |
+| `PUBLIC_IP` | Instance has a public IP | |
+| `MISSING_TAGS` | Any of `owner`, `cost-center`, `data-class` missing | Only `app-catalog` has them |
+| `HARDCODED_IP` | A config value contains an IPv4 literal | Fires on orders **and** pricing (D1) |
+| `STATEFUL` | DB port open, large extra EBS volume, or tag `stateful=true` | None of the 3 real apps |
+
+**Expected for the 3 real apps (after D1/D2):** catalog = 7 baseline findings;
+pricing = 7 + `MISSING_TAGS` + `HARDCODED_IP`; orders = 7 + `MISSING_TAGS` + `HARDCODED_IP`;
+edges `orders → pricing → catalog`, each found by all 3 signals; all three GOLDEN.
+
+### Performance
+Real scan < 10 s. 1,000 synthetic apps rules-only < 3 s. ~50 borderline LLM calls, 8 concurrent.
 
 ---
 
-## Checkpoints this track owns
+## A2's job: Planning + synthetic fleet + integration captain
 
-- **Hour 2:** Contract freeze — the hardest deadline on the whole team.
-- **Checkpoint 1 (hour 8):** contracts frozen, fixtures committed, `fleet.json` generated, framework merged.
-- **Checkpoint 2 (hour 20):** both agents run standalone from the CLI against real accounts.
-- **Checkpoint 3 (hour 32):** orchestrator runs the full 4-agent chain live; `STATUS.md` current.
+### Planning — `WavePlan` from `AppRecord[]` / `Tiering[]` / `Edge[]`
+
+| ID | Task |
+|---|---|
+| T2-P-1 | Exclude Red → `PARKED` (with reasons) |
+| T2-P-2 | `networkx.DiGraph` consumer → provider; strongly connected components become move-together units; small tight clusters (≤ 5) become units |
+| T2-P-3 | Topological order, providers before consumers; pack waves: **Wave 0 = exactly the 3 real apps**, in order catalog → pricing → orders; then Golden units, then Gray (Gray counts as 2 slots); never split a unit; respect `capacity_per_wave` |
+| T2-P-4 | Schedule `waves_per_week` from `start_date`, skipping the freeze window (15 Dec – 5 Jan); projection: `projected_finish`, `apps_per_day`, `meets_target_2027` |
+| T2-P-5 | Optional LLM rationale per wave + overall; template-string fallback |
+| T2-P-6 | `run()` + CLI `python -m agents.planning --capacity 40`; `PLAN_DONE` event; statuses → `PLANNED` / `PARKED` |
+| T2-P-7 | Tests: 1,000 apps in < 1 s with LLM off; no consumer before its provider; Wave 0 = real apps; projection changes when capacity changes |
+
+### Synthetic fleet — `python data/generate_fleet.py --count 1000 --seed 42 --out data/fleet.json`
+
+| ID | Task |
+|---|---|
+| T2-F-1 | Generator v1: `syn-00001…`, Faker names, ~25 teams, business units, runtime mix (ec2 85 / ecs 10 / unknown 5), 12 % stateful, AMI age 30–1,400 days, license mix, scale-free `depends_on` (`barabasi_albert_graph`) |
+| T2-F-2 | Emit **raw config fields** (SG rules, encryption, IMDS, tags, env values, route-table facts) and leave `findings` empty, so Discovery's own rules compute them — that's what makes "same logic for real and synthetic" true |
+| T2-F-3 | Tune probabilities against A1's `tiering.py` until the fleet lands ~60/25/15; the script prints count, tier estimate, max in-degree, isolated apps, and checks there are no self/dangling dependencies |
+
+### Integration captain
+
+| ID | Task |
+|---|---|
+| T2-I-1 | `STATUS.md` (Working / Broken / Next), updated at every standup |
+| T2-I-2 | Own the G3 dry run with C1: all 3 real apps end-to-end from the dashboard + bad wave; keep the bug list sorted "must fix" / "narrate around" |
+| T2-I-3 | `scripts/e2e_real.sh` (with C1): Discovery → Planning → Blueprint `app-catalog` → Cutover, from the CLI, against real accounts |
+
+---
+
+## Interface to the other tracks
+
+### What Track 2 needs
+
+| From | What | By | If late |
+|---|---|---|---|
+| Track 4 (C1) | T1-5 — developer access to Account B (+ assume `mig-agent-runner`) | H+8 | A1 keeps building on recorded responses; only T2-D-8 waits |
+| Track 4 (C1) | `llm.py` / `tools.py` / `loop.py` with `off` + `mock` backends | H+4 | Tiering and Planning run rules-only, which is required anyway |
+| Track 4 (C1) | Bedrock model ID (T1-3) | not blocking | `LLM_BACKEND=off` |
+| Track 3 | Review of the blueprint/cutover/traffic fixtures | H+2 | A2 writes them from CONTRACTS; A3/A4 fix them in their first PR |
+
+### What Track 2 delivers
+
+| To | What | By |
+|---|---|---|
+| Everyone | G0: models, store/events signatures, agent stubs, fixtures | **H+2** |
+| Everyone | `store.py`, `events.py`, `aws.py` implemented | H+5 |
+| Track 3 (A3) | Real `AppRecord`s for the 3 apps (in the store + refreshed `fixtures/apps.json`) | H+12 |
+| Track 4 (C1) | `discovery.run` / `planning.run` working on fixtures | H+8; real H+16 |
+| Track 4 (C2) | Real data behind `/apps`, `/edges`, `/tiers`, `/plan` | H+16 |
 
 ## Definition of Done
 
-- [ ] Contracts frozen + fixtures committed by hour 2
-- [ ] `agents/common/` merged and reviewed by Track 3 by hour 8
-- [ ] Discovery: 3 real apps + correct edges; 1,000 synthetic apps tiered ~60/25/15; works with `LLM_BACKEND=off`
-- [ ] Planning: 1,000 apps in <1s; no consumer scheduled before its provider; Wave 0 = the 3 real apps
-- [ ] Orchestrator wires the full pipeline with live SSE
-- [ ] `STATUS.md` kept current throughout; A2 and Track 1's C1 never sleep at the same time
+- [ ] G0 met at H+2: models, store/events signatures, stubs, fixtures merged; D1/D2 decided
+- [ ] `store.py`, `events.py`, `aws.py` merged with tests; two-hop `legacy()` works against the live account
+- [ ] Discovery: 3 real apps with the expected findings and edges (all 3 signals each); nothing hardcoded (renaming an app's `Name` tag still works); runs with `LLM_BACKEND=off`
+- [ ] Discovery: 1,000 synthetic apps tiered ~60/25/15 in < 3 s rules-only
+- [ ] Planning: 1,000 apps in < 1 s; no consumer before its provider; Wave 0 = the 3 real apps
+- [ ] `fleet.json` generated with a fixed seed; sanity checks pass
+- [ ] `STATUS.md` kept current; A2 and C1 never offline at the same time
 
 ## Cut list (in order, if behind)
 
-1. VPC Flow Log dependency inference (A1) — tags + SG references only
-2. LLM-written rationale text in Planning (A2) — template string instead
+1. VPC Flow Log dependency inference (A1) — tags + SSM + SG references only
+2. LLM-written rationale in Planning (A2) — template string
+3. LLM borderline tiering (A1) — rules decide everything, `decided_by=rules`

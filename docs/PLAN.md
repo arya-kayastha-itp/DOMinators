@@ -1,5 +1,10 @@
 # Hackathon Plan — 48 Hours, 6 People
 
+> **Update:** Track 1 (Cloud) is complete. For the remaining work, the roles, gates and
+> hand-offs in [00_DELEGATION_MAP.md](00_DELEGATION_MAP.md) and the four `TRACK_*.md` files
+> replace the role table and timeline below. In short, C1/C2 now own the backend and
+> frontend (Track 4), and live status is tracked in [checklist.md](../checklist.md).
+
 ## Goal
 
 By hour 40 we have a rehearsed, end-to-end demo that shows five things:
