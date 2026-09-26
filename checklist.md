@@ -253,12 +253,20 @@ checks of the edge ALB._
       Bedrock via boto3's Converse API (no `anthropic` SDK needed; pip can't reach
       PyPI on the A2 laptop), `AWS_BEARER_TOKEN_BEDROCK` honoured, `anthropic`
       backend imports the SDK lazily. Tested offline (mock + fake Converse client);
-      the live Bedrock path waits on T1-3
+      the live Bedrock path waits on T1-3.
+      **2026-09-27: Bedrock dropped (no payment method) → `watsonx` backend added
+      as primary** (IBM watsonx.ai chat API, IAM token cached, forced
+      `tool_choice`, JSON-in-content accepted for Granite) **plus `gemini`**
+      (`functionCallingConfig` mode ANY, `parametersJsonSchema`), which is also
+      the automatic fallback for `watsonx` when `GEMINI_API_KEY` is set. Both are
+      stdlib HTTPS (no new dependencies). Tested offline only; keys not yet in `.env`
 - [ ] T4-L-2 `tools.py` (registry, validation, allowlist guard) (C1)
 - [ ] T4-L-3 `loop.py` (`TOOL_CALL` / `LLM_FALLBACK` events) (C1)
 - [ ] T4-L-4 LLM plumbing tests + one live Bedrock smoke test (C1) — `test_llm.py`:
-      12 offline tests pass (backends, forced tool choice, all 4 hooks on `mock`,
-      mapper fallback). The live test (`LLM_LIVE=1`) fails on T1-3's use-case form.
+      18 offline tests pass (every backend incl. watsonx/Gemini request shapes,
+      IAM-token caching, watsonx → Gemini fallback, all 4 hooks on `mock`, mapper
+      fallback). The live test (`LLM_LIVE=1`) uses `.env`'s `LLM_BACKEND`; Bedrock
+      passed it once before billing blocked it; watsonx not yet run (needs keys).
       `conftest.py` now forces `LLM_BACKEND=off` so `.env` can't send the suite to Bedrock
 
 ### 9. Discovery — Track 2 / A1

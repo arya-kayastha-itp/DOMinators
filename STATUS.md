@@ -45,11 +45,12 @@ restored it to legacy. This file is the integration captain's running view
 - **Cutover needs a traffic generator running** — outside the orchestrator
   (T4-O-8) nothing produces samples and the gate fails with "0 requests". The
   e2e script runs one; the orchestrator must too.
-- **LLM live path blocked on Bedrock access**: `agents/common/llm.py` now exists
-  and all 4 hooks (tiering, Planning pilot rationale, `mapper_llm`, `explainer`)
-  pass on `LLM_BACKEND=mock`. But Account B now refuses every Claude model until
-  someone submits the Anthropic use-case form in the Bedrock console (T1-3).
-  `.env` stays `LLM_BACKEND=off` until then.
+- **LLM: moving to watsonx.ai**: Bedrock can't be used (Account B has no payment
+  method for AWS Marketplace). `agents/common/llm.py` now has a `watsonx` backend
+  (Granite) with Gemini as the automatic fallback. All 4 hooks (tiering, Planning
+  pilot rationale, `mapper_llm`, `explainer`) pass on `mock`; the live watsonx run
+  waits for keys in `.env`. `.env` stays `LLM_BACKEND=off` until then, and every
+  hook falls back to rules on any LLM failure.
 - **Parked apps are only parked by Planning**: Gitea/Vaultwarden are RED → parked
   and have no target group or rule in Account B, but `blueprint.run` /
   `cutover.run` don't refuse a RED app themselves — the orchestrator's lifecycle
@@ -63,8 +64,8 @@ restored it to legacy. This file is the integration captain's running view
 
 ## Next
 
-- Account B owner: submit the Anthropic use-case form, then
-  `LLM_LIVE=1 pytest agents/tests/test_llm.py -k live` and set `LLM_BACKEND=bedrock`.
+- Fill `WATSONX_*` (and optionally `GEMINI_API_KEY`) in `.env`, set
+  `LLM_BACKEND=watsonx`, run `LLM_LIVE=1 pytest agents/tests/test_llm.py -k live`.
 - Track 4 (C1): orchestrator on the real agents (must autostart the traffic
   generator, T4-O-8); `tools.py` / `loop.py`.
 - Track 3: review the gate tuning; real bad-wave run on `app-orders`; kill test.
