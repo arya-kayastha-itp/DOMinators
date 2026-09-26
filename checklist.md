@@ -114,13 +114,49 @@ checks of the edge ALB._
       `listener_port`, `health_path`, `runtime`); `data/target_outputs.json` re-exported
       **without a BOM** (the previous PowerShell export had one, which breaks Python's
       `json.load`); verified with `json.load`
-- [ ] Juice Shop + Gitea deployed in Account A per `docs/ADDITIONAL_APPS.md` §1
-      (Nancy / Arya / Palak) — change set must show exactly 4 `Add`, and
-      `PeeringConnectionId` stays blank
+- [x] `JuiceShopSG`/`JuiceShopInstance`/`GiteaSG`/`GiteaInstance` + their 2
+      `PrivateIp` outputs added to `account-a-v2.yaml`, `account-a-all-in-one.yaml`
+      and `04-legacy-apps.yaml` (Arya, both apps in one commit)
+- [x] Change set applied to `mig-legacy-all` (Arya, via console access to Nancy's
+      account) — exactly 4 `Add` rows, `PeeringConnectionId` left blank,
+      `UPDATE_COMPLETE` reached (2026-09-26)
+- [x] Bug found + fixed: both apps' `UserData` used `amazon-linux-extras install
+      -y docker`, but the live legacy AMI is AL2023, not true Amazon Linux 2 as
+      the `OldAmiId` parameter's description claims (already flagged once in
+      `TRACK_1_CLOUD.md`, missed again here). `amazon-linux-extras` doesn't exist
+      on AL2023 — confirmed via the instance system log (`amazon-linux-extras:
+      command not found`, then `docker: command not found`) — so Docker never
+      installed and both apps were unreachable (port 8080 timed out). Fixed to
+      `dnf install -y docker` in all 3 CloudFormation templates and
+      `docs/ADDITIONAL_APPS.md`
+- [x] Live `mig-legacy-all` stack updated with the corrected `UserData`
+      (`Replacement: True` on `JuiceShopInstance`/`GiteaInstance`, as expected) —
+      **but the replacement instances came up with no `scripts-user` invocation
+      at all** (confirmed via `/var/log/cloud-init-output.log`: no `part-001`
+      attempt this time, vs. the first boot which did try and failed on
+      `amazon-linux-extras`). Root cause not yet found — worth re-checking before
+      any future full rebuild (T1-9). Worked around by connecting via **EC2
+      Instance Connect** (no `.pem` needed, AL2023 ships it pre-installed) and
+      running the `dnf install -y docker` + `docker run` commands by hand on both
+      instances. Both verified: `app-juice-shop` → `curl :8080/` → `200` (local
+      and external), `app-gitea` → `curl :8080/api/healthz` → `{"status":"pass"}`
+      (local and external) (2026-09-26)
+- [x] `VaultwardenSG`/`VaultwardenInstance` + `VaultwardenPrivateIp` output added
+      to all 3 CloudFormation templates (Arya) — 3rd real app, follows Gitea's
+      exact pattern: stateful (embedded SQLite on `/opt/vaultwarden`), tagged
+      `stateful=true`, no `TargetVpcCidr` ingress (Red tier, parked, never
+      migrates, no Account B work needed)
+- [x] Change set applied to `mig-legacy-all` for `VaultwardenSG`/`VaultwardenInstance`
+      — exactly 2 `Add` rows, `PeeringConnectionId` left blank, `UPDATE_COMPLETE`
+      reached. This time `UserData` **did** execute on its own (Docker and the
+      container were already up before any manual command ran) — the earlier
+      no-`scripts-user`-invocation issue on Juice Shop/Gitea's replacement launch
+      looks like it was a one-off, not systemic. Verified: `curl :8080/alive` →
+      `200` (local and external) (2026-09-26)
 - [ ] Legacy Juice Shop IP registered in `tg-app-juice-shop-legacy`
       (`AvailabilityZone=all`); `curl <alb>:3000/` → 200 via peering
-- [ ] Track 2: Wave 0 / expected-findings tests updated for the 2 new apps
-      (Juice Shop → Golden, Gitea → Red via `STATEFUL`)
+- [ ] Track 2: Wave 0 / expected-findings tests updated for the 3 new apps
+      (Juice Shop → Golden, Gitea + Vaultwarden → Red via `STATEFUL`)
 - [ ] Track 3: Blueprint passes `app_routes[app].runtime` into `golden_app` and
       handles apps with a `listener_port` (no `path_prefix`)
 - [ ] `envs/target` listener rules: `lifecycle { ignore_changes = [action] }` (or

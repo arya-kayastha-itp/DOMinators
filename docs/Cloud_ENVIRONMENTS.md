@@ -97,8 +97,11 @@ The app must also answer on its path prefix (for example `/catalog/` and `/catal
 | `app-catalog` | — | Present | Baseline issues only |
 | `app-pricing` | `app-catalog` | **Missing** | + `MISSING_TAGS`, `HARDCODED_IP` (decision D1: its `/legacy/app-pricing/CATALOG_URL` holds `http://10.10.1.61:8080`, so the rule genuinely fires; the instance's `findings` oracle tag predates this and omits it) |
 | `app-orders` | `app-pricing` | **Missing** | + `MISSING_TAGS`, `HARDCODED_IP` |
+| `app-juice-shop` (OWASP Juice Shop `v20.2.0`, real app) | — | Present | Baseline issues only — resets its own SQLite DB on every start, so it's stateless and tiers **Golden** |
+| `app-gitea` (Gitea `1.27.3`, real app) | — | Present | + `STATEFUL` — repos/users live on the instance disk, tagged `stateful=true`, so it tiers **Red** and Planning parks it (never migrates) |
+| `app-vaultwarden` (Vaultwarden, self-hosted Bitwarden-compatible server, real app) | — | Present | + `STATEFUL` — vault data lives on the instance disk (embedded SQLite, `-v /opt/vaultwarden:/data`), tagged `stateful=true`, so it tiers **Red** and Planning parks it (never migrates), same as `app-gitea` |
 
-The baseline issues on all 3 apps are `SG_OPEN_SSH`, `SG_OPEN_APP`, `EBS_UNENCRYPTED`, `IMDSV1`, `OLD_AMI`, `NO_VPC_SEGMENTATION` and `PUBLIC_IP` — 7 baseline findings, plus `MISSING_TAGS` and `HARDCODED_IP` per the table above (9 distinct finding codes across the fleet).
+The baseline issues on the original 3 apps are `SG_OPEN_SSH`, `SG_OPEN_APP`, `EBS_UNENCRYPTED`, `IMDSV1`, `OLD_AMI`, `NO_VPC_SEGMENTATION` and `PUBLIC_IP` — 7 baseline findings, plus `MISSING_TAGS` and `HARDCODED_IP` per the table above (9 distinct finding codes across the fleet). `app-juice-shop`, `app-gitea` and `app-vaultwarden` (see `docs/ADDITIONAL_APPS.md`) carry the same baseline 7, plus `STATEFUL` on the two parked apps — 10 distinct finding codes across the fleet with all 3 real apps live. All three run in Docker on host port 8080 (Juice Shop and Gitea map to container port 3000, Vaultwarden to container port 80), so every app keeps the same external port for security groups, target groups and health checks.
 
 Each dependency is expressed **three ways**, and Discovery must find all of them:
 
