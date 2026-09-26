@@ -72,7 +72,7 @@ infra/terraform/
 └── README.md                      # apply order, quick reference
 ```
 
-Plus `docs/cloud-migration-accelerator/app/server.py` — the ~30-line
+Plus `app/server.py` (repo root) — the ~30-line
 shared app both environments' user-data run (`SERVED_BY` env var is the
 only code-level difference between legacy and target).
 
@@ -150,8 +150,16 @@ terraform apply
 
 **Hand-off artifact for the agents:**
 ```bash
-terraform output -json > ../../../data/target_outputs.json
+terraform output -json > ../../../../data/target_outputs.json   # → repo-root data/
 ```
+
+> **Repo move (2026-09-26):** this Terraform used to live under
+> `docs/cloud-migration-accelerator/infra/terraform/`; it is now at `infra/terraform/`
+> (and `app/`, `data/` moved to the repo root). State is remote in S3, so nothing in AWS
+> changes — but any existing local checkout must re-run
+> `terraform init -backend-config=backend-config.hcl` in the new `envs/target` (copy
+> `backend-config.hcl` / `terraform.tfvars` across, they're gitignored) and confirm
+> `terraform plan` shows **no changes**.
 This is what Blueprint/Cutover are supposed to read instead of
 hardcoding anything about Account B (per `docs/CONTRACTS.md`).
 

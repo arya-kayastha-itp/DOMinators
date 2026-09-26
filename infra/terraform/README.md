@@ -1,6 +1,8 @@
-# Terraform — Account B (target) is scaffolded here
+# Terraform — Account B (target)
 
-Nancy owns `envs/legacy` and `modules/legacy_app` (Account A) separately — not in this repo yet.
+Account A (legacy) is built with CloudFormation instead, in
+[`../cloudformation/legacy/`](../cloudformation/legacy/ACCOUNT_A_SETUP.md). Full Account B
+build record: [ACCOUNT_B_SETUP.md](ACCOUNT_B_SETUP.md).
 
 ## Apply order
 
@@ -31,7 +33,8 @@ Blueprint and Cutover read Account B's shape from `target_outputs.json` (per
 every apply:
 
 ```bash
-terraform output -json > ../../../data/target_outputs.json
+# from infra/terraform/envs/target → repo-root data/
+terraform output -json > ../../../../data/target_outputs.json
 ```
 
 ## Turning on peering to Account A

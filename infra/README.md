@@ -22,9 +22,11 @@ Pick **one region** for everything. VPC peering, the ALB IP targets, and cross-a
 ## Terraform layout
 
 `modules/network`, `modules/iam_cross_account`, `modules/golden_app`, `modules/edge_alb`,
-`envs/target`, and `bootstrap` are implemented — see [`infra/terraform/README.md`](terraform/README.md)
-for the exact apply order. `modules/legacy_app` and `envs/legacy` are Account A and owned by
-Nancy separately.
+`envs/target`, and `bootstrap` are implemented and live — see [`infra/terraform/README.md`](terraform/README.md)
+for the exact apply order. Account A was built with **CloudFormation** instead of the
+planned `modules/legacy_app` / `envs/legacy` — see
+[`cloudformation/legacy/ACCOUNT_A_SETUP.md`](cloudformation/legacy/ACCOUNT_A_SETUP.md). The
+tree below shows the original Terraform plan; the two legacy entries were never built.
 
 ```
 infra/terraform/

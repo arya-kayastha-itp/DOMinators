@@ -1,69 +1,61 @@
-# Track 1 — Cloud
+# Track 1 — Cloud (complete)
 
-**Members:** C1, C2 (2 people). **Owns:** both AWS accounts, networking, IAM, the golden module, the edge ALB, the 3 legacy apps, and — from hour 16 — the dashboard.
+**Members:** C1 (Priyansh — Account B), C2 (Nancy — Account A). **Status:** done.
+Both move to [Track 4](TRACK_4_BACKEND_FRONTEND.md); C1 finishes the carry-over
+list below as part of Track 4.
 
-This track is unchanged from the individual packets; it was already a clean 2-person track. What follows is the same content, framed as one track with an internal split, plus its interface to the other two tracks.
-
----
-
-## Internal split
-
-| | C1 | C2 |
-|---|---|---|
-| Hours 0–8 | Accounts, IAM roles, VPCs, peering | Legacy VPC, 3 misconfigured EC2 apps (see note below) |
-| Hours 8–16 | Golden module, edge ALB, Bedrock access check | Wire dependencies, build the bad-wave switch |
-| Hour 16 | — | **Hard handoff: moves to dashboard** |
-| Hours 16–32 | Support A3/A4 on apply and ALB weights | Dashboard build |
-| Hours 32–48 | Full rebuild test, backup video, **presenter** | Dashboard polish, **demo operator** |
-
-C1 is the track's infra half and never really blocks on C2. C2's phase 1 (legacy apps) is what Track 2 and Track 3 scan against; C2's phase 2 (dashboard) is what all four agents render into.
-
-**Note on the legacy VPC (see [Cloud_ENVIRONMENTS.md](Cloud_ENVIRONMENTS.md)):** Account A gets one real VPC, not a fleet of disconnected ones — peering to Account B depends on that. What C2 must **not** build is a private-subnet tier inside it: every route table in the legacy VPC should route `0.0.0.0/0` straight to the IGW, with no private route table at all. That absence is the genuine, scannable `NO_VPC_SEGMENTATION` finding — Discovery's headline finding, ahead of `PUBLIC_IP` — so don't build a tidy tiered legacy VPC by accident, or the finding stops being real.
+The full build records are the source of truth:
+- Account A: [infra/cloudformation/legacy/ACCOUNT_A_SETUP.md](../infra/cloudformation/legacy/ACCOUNT_A_SETUP.md) (CloudFormation, `account-a-v2.yaml`)
+- Account B: [ACCOUNT_B_SETUP.md](../infra/terraform/ACCOUNT_B_SETUP.md) (Terraform, `envs/target`)
 
 ---
 
-## What this track produces, and who consumes it
+## What's live (verified)
 
-| Output | Consumed by | By hour |
-|---|---|---|
-| `mig-discovery-readonly` role, tested | Track 2 (Discovery) | 8 |
-| 3 legacy apps with real findings + 3-way discoverable dependencies | Track 2 (Discovery) | 8 |
-| `golden_app` variable schema | Track 3 (Blueprint) | 10 |
-| Terraform state backend (bootstrap) | Track 3 (Blueprint) | 20 |
-| Edge ALB: `listener_rule_arn`, `tg-<app>-target`, `tg-<app>-legacy` ARNs | Track 3 (Cutover) | 12 |
-| `app-orders` reacting correctly to missing `PRICING_URL` (500 on `/`, 200 on `/health`) | Track 3 (Blueprint's bad-wave drop, Cutover's gate test) | 16 |
-| Dashboard (from hour 16) | Everyone — this is what judges watch | 32 (first full dry run) |
+| Item | Value / evidence |
+|---|---|
+| Region (both accounts) | `ap-south-1` |
+| Account A (legacy) | `533266974611`, VPC `vpc-0bc12dd6664275ce7` (`10.10.0.0/16`, no private tier), 3 apps via CloudFormation — **not** the Terraform `legacy_app` module originally planned |
+| Account B (target) | `408336117553`, VPC `vpc-06b381c1e65577891` (`10.20.0.0/16`, public + private tiers, NAT) |
+| Peering | `pcx-0ae4efd1f16fc19be`, `active`, routes on both sides |
+| Cross-account IAM | two-hop `mig-agent-runner` → `mig-discovery-readonly` (+ ExternalId) succeeds |
+| Edge ALB | `mig-edge-alb-1536629619.ap-south-1.elb.amazonaws.com`; rules `/catalog` `/pricing` `/orders` at **100/0**, legacy IP targets registered + healthy |
+| Golden module | `app-hello` live on `golden_app`: `GET /hello/` → `{"served_by": "target"}` (checked 2026-09-26) |
+| End-to-end | `GET /orders/` through the ALB → 200 with nested orders → pricing → catalog, all `served_by: legacy` (checked 2026-09-26) |
+| Hand-off artifact | `data/target_outputs.json` (ALB DNS, listener + rule ARNs, legacy/target TG ARNs, subnets, SGs, KMS alias, roles) |
+| Bad-wave app behavior | Coded in `app/server.py`: `REQUIRE_UPSTREAM=1` + no `UPSTREAM_URL` → 500 on `/`, 200 on `/health`. Verified live only once Blueprint deploys `app-orders` |
 
-## What this track needs from the other two tracks
+## Facts the agent tracks must know (differ from the original plan)
 
-| From | What | By hour |
-|---|---|---|
-| Track 2 | Confirmed Bedrock model ID once access is granted (so C1 knows the access request worked) | 12 (not blocking) |
-| Track 2 / Track 3 | Contract shapes frozen, so the dashboard (C2) builds against something stable | 2 |
-
-This track is the **least blocked** of the three — almost everything in hours 0–12 is buildable from Terraform alone, independent of agent progress.
+- Apps read **`UPSTREAM_URL`**, not `PRICING_URL`. `PRICING_URL` / `CATALOG_URL` are only SSM parameter names under `/legacy/`.
+- Legacy instances are identified by their **`Name`** tag (`app-catalog`, …); there is no `app` tag.
+- Legacy instances carry a human-readable `findings` tag. **Discovery must never read it** as a source — only as a test oracle.
+- The legacy AMI (`ami-0b60ca38391b1a1ee`, AL2023 from 2023-02-24) is **deprecated**, so `describe_images` returns nothing for it unless called with `IncludeDeprecated=True`.
+- The legacy VPC has a second (main) route table that no subnet uses and that has no IGW route. `NO_VPC_SEGMENTATION` must be evaluated on each subnet's *effective* route table, or it gives the wrong answer.
+- `/legacy/app-pricing/CATALOG_URL` holds an IP too, so a literal `HARDCODED_IP` rule also fires on `app-pricing`, not just `app-orders` (see Track 2 decision D1).
+- The golden module needs `path_prefix` (`/catalog`, …) or the ALB health check (`/<prefix>/health`) fails. `target_outputs.json` doesn't include path prefixes yet (T1-4).
 
 ---
 
-## Checkpoints this track owns
+## Carry-over (owner C1, inside Track 4's schedule)
 
-- **Checkpoint 1 (hour 8):** 3 legacy apps respond correctly; target account can assume the legacy readonly role.
-- **Hour 16:** Bad-wave switch verified working; C2 hands off to dashboard.
-- **Checkpoint 2 (hour 20):** ALB fully wired; dashboard shows fleet view from fixtures.
-- **Hour 36:** Full teardown/rebuild test, timed, under 20 minutes.
+Real gaps found by reading the Terraform against how the agents will use it. **T1-1 and T1-2 block Track 3's real runs — do them first (by H+6).**
 
-## Non-negotiables
+| ID | Task | Why |
+|---|---|---|
+| **T1-1** | Tag the ALB listener rules (`tags = var.tags` on `aws_lb_listener_rule` in `modules/edge_alb`) and move `elasticloadbalancing:Describe*` into a statement **without** the `aws:ResourceTag` condition in `iam_cross_account`. Verify `modify-rule` + `describe-target-health` work as `mig-agent-runner`. | `mig-agent-runner`'s ELB permissions require `managed-by=migration-accelerator` on the resource, but the listener rules are untagged, and Describe calls don't support resource-tag conditions → Cutover would get `AccessDenied` |
+| **T1-2** | Give `mig-tf-apply` `iam:PassRole` on `mig-app-instance` + `iam:GetInstanceProfile` (inline policy), then run a `golden_app` plan/apply as that role. Or decide explicitly that Blueprint applies with the `mig-target` admin profile for the hackathon, and write that down. | `PowerUserAccess` excludes IAM actions; `golden_app` attaches an instance profile, which needs `PassRole` |
+| **T1-3** | Bedrock: request Claude model access in `ap-south-1` (likely through an APAC cross-region inference profile), confirm with one `InvokeModel` call, put the model ID in `.env` as `LLM_MODEL_ID`. | Every agent's LLM step; `LLM_BACKEND=off` is the fallback until then |
+| **T1-4** | Add an `app_routes` output (`{app: {path_prefix, priority, port}}`) to `envs/target`, re-export `data/target_outputs.json` (from `envs/target`: `../../../../data/target_outputs.json` — the setup docs now say so). | Blueprint needs `path_prefix`; the export path in the docs was wrong (now fixed) |
+| **T1-5** | Give every developer CLI access to Account B (IAM user or SSO) that can assume `mig-agent-runner`; add the needed variables to `.env.example` (`AWS_REGION`, `TARGET_PROFILE`, `LEGACY_ROLE_ARN`, `LEGACY_EXTERNAL_ID`, `AGENT_RUNNER_ROLE_ARN`, `TF_APPLY_ROLE_ARN`, `LLM_BACKEND`, `LLM_MODEL_ID`). | Four agent developers hit real AWS from G2 onward, in parallel |
+| **T1-6** | Reconcile Account A drift: the SG ingress from `10.20.0.0/16` and the return route were fixed by hand on the live stack. Run CloudFormation drift detection and make the live stack match `account-a-v2.yaml` (or fix the template), and record whether the readonly role trusts `mig-agent-runner`'s ARN or Account B's root. | A rebuild must reproduce the working state |
+| **T1-7** | Script the legacy target registration (`scripts/register_legacy_targets.sh`: discover legacy IPs via the readonly role, `register-targets` with `AvailabilityZone=all`). | It was manual; rebuild must be < 20 min |
+| **T1-8** | `make demo-reset` (weights → 100/0 on all 3 rules, `terraform destroy` each `generated/<app>`, `store.reset()`) and `make demo-check` (ALB paths return 200, legacy TGs healthy). | Needed before every rehearsal |
+| **T1-9** | Full teardown/rebuild test, timed (target < 20 min); AWS Budgets alarm in both accounts; tear down ALB/NAT/KMS between sessions. | Cost + demo safety |
+| **T1-10** | ExternalId and account IDs appear in plaintext in ACCOUNT_B_SETUP.md — decide whether to rotate the ExternalId and keep the new one only in `.env`. | Hygiene; it is treated as a shared secret elsewhere |
 
-- ALB **weighted target groups**, not DNS — DNS caching makes the cutover look delayed on stage.
-- Bad-wave fault lives in app config only, never in security settings — the ALB health check must keep passing so it's the *traffic gate* (Track 3) that catches it, not the load balancer.
-- Dashboard: one color meaning everywhere (Golden=green, Gray=amber, Red=red, Legacy=gray, Target=blue), every button has a loading state, nothing fails silently on stage.
+## Non-negotiables (still apply)
 
-## Definition of Done
-
-- [ ] Both accounts provisioned from Terraform, rebuildable in under 20 minutes
-- [ ] 3 legacy apps up with all 9 finding codes genuinely detectable across the fleet (see [Cloud_ENVIRONMENTS.md](Cloud_ENVIRONMENTS.md) §4), dependencies discoverable 3 ways
-- [ ] Golden module + `app-hello` reference live in Account B
-- [ ] Edge ALB wired, both target groups registered per app, weights start `100/0`
-- [ ] Bad-wave switch verified with Track 3
-- [ ] Dashboard renders all 6 tabs from live API data, survives a refresh, tested at projector resolution
-- [ ] Backup video recorded from a clean rehearsal
+- ALB **weighted target groups**, not DNS.
+- The bad-wave fault lives in app config only, never in security settings — the ALB health check must keep passing so the *traffic gate* catches it.
+- Destroy target before legacy (peering + IP targets depend on the legacy VPC).
