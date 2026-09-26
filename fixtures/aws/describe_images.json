@@ -1,0 +1,45 @@
+[
+  {
+    "Images": [
+      {
+        "PlatformDetails": "Linux/UNIX",
+        "UsageOperation": "RunInstances",
+        "BlockDeviceMappings": [
+          {
+            "Ebs": {
+              "DeleteOnTermination": true,
+              "Iops": 3000,
+              "SnapshotId": "snap-0fb864c4aa404b713",
+              "VolumeSize": 8,
+              "VolumeType": "gp3",
+              "Throughput": 125,
+              "Encrypted": false
+            },
+            "DeviceName": "/dev/xvda"
+          }
+        ],
+        "Description": "Amazon Linux 2023 AMI 2023.0.20230315.0 x86_64 HVM kernel-6.1",
+        "EnaSupport": true,
+        "Hypervisor": "xen",
+        "ImageOwnerAlias": "amazon",
+        "Name": "al2023-ami-2023.0.20230315.0-kernel-6.1-x86_64",
+        "RootDeviceName": "/dev/xvda",
+        "RootDeviceType": "ebs",
+        "SriovNetSupport": "simple",
+        "VirtualizationType": "hvm",
+        "BootMode": "uefi-preferred",
+        "DeprecationTime": "2023-08-25T17:28:00.000Z",
+        "ImdsSupport": "v2.0",
+        "FreeTierEligible": true,
+        "ImageId": "ami-05afd67c4a44cc983",
+        "ImageLocation": "amazon/al2023-ami-2023.0.20230315.0-kernel-6.1-x86_64",
+        "State": "available",
+        "OwnerId": "137112412989",
+        "CreationDate": "2023-03-13T23:52:38.000Z",
+        "Public": true,
+        "Architecture": "x86_64",
+        "ImageType": "machine"
+      }
+    ]
+  }
+]

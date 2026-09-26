@@ -95,7 +95,7 @@ The app must also answer on its path prefix (for example `/catalog/` and `/catal
 | App | Depends on | Business tags | Extra issues |
 |---|---|---|---|
 | `app-catalog` | — | Present | Baseline issues only |
-| `app-pricing` | `app-catalog` | **Missing** | + `MISSING_TAGS` |
+| `app-pricing` | `app-catalog` | **Missing** | + `MISSING_TAGS`, `HARDCODED_IP` (decision D1: its `/legacy/app-pricing/CATALOG_URL` holds `http://10.10.1.61:8080`, so the rule genuinely fires; the instance's `findings` oracle tag predates this and omits it) |
 | `app-orders` | `app-pricing` | **Missing** | + `MISSING_TAGS`, `HARDCODED_IP` |
 | `app-juice-shop` (OWASP Juice Shop `v20.2.0`, real app) | — | Present | Baseline issues only — resets its own SQLite DB on every start, so it's stateless and tiers **Golden** |
 | `app-gitea` (Gitea `1.27.3`, real app) | — | Present | + `STATEFUL` — repos/users live on the instance disk, tagged `stateful=true`, so it tiers **Red** and Planning parks it (never migrates) |

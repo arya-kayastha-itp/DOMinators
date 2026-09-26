@@ -134,7 +134,7 @@ Real scan < 10 s. 1,000 synthetic apps rules-only < 3 s. ~50 borderline LLM call
 |---|---|
 | T2-P-1 | Exclude Red → `PARKED` (with reasons) |
 | T2-P-2 | `networkx.DiGraph` consumer → provider; strongly connected components become move-together units; small tight clusters (≤ 5) become units |
-| T2-P-3 | Topological order, providers before consumers; pack waves: **Wave 0 = exactly the 3 real apps**, in order catalog → pricing → orders; then Golden units, then Gray (Gray counts as 2 slots); never split a unit; respect `capacity_per_wave` |
+| T2-P-3 | Topological order, providers before consumers; pack waves: **Wave 0 = every real app that isn't parked**, providers first (today: catalog → pricing → orders → juice-shop; Gitea and Vaultwarden are stateful → Red → parked); then units in dependency order, Golden before Gray among the eligible ones (Gray counts as 2 slots); never split a unit; respect `capacity_per_wave` |
 | T2-P-4 | Schedule `waves_per_week` from `start_date`, skipping the freeze window (15 Dec – 5 Jan); projection: `projected_finish`, `apps_per_day`, `meets_target_2027` |
 | T2-P-5 | Optional LLM rationale per wave + overall; template-string fallback |
 | T2-P-6 | `run()` + CLI `python -m agents.planning --capacity 40`; `PLAN_DONE` event; statuses → `PLANNED` / `PARKED` |
@@ -185,7 +185,7 @@ Real scan < 10 s. 1,000 synthetic apps rules-only < 3 s. ~50 borderline LLM call
 - [ ] `store.py`, `events.py`, `aws.py` merged with tests; two-hop `legacy()` works against the live account
 - [ ] Discovery: 3 real apps with the expected findings and edges (all 3 signals each); nothing hardcoded (renaming an app's `Name` tag still works); runs with `LLM_BACKEND=off`
 - [ ] Discovery: 1,000 synthetic apps tiered ~60/25/15 in < 3 s rules-only
-- [ ] Planning: 1,000 apps in < 1 s; no consumer before its provider; Wave 0 = the 3 real apps
+- [ ] Planning: 1,000 apps in < 1 s; no consumer before its provider; Wave 0 = the real apps that aren't parked
 - [ ] `fleet.json` generated with a fixed seed; sanity checks pass
 - [ ] `STATUS.md` kept current; A2 and C1 never offline at the same time
 

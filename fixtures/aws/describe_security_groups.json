@@ -1,0 +1,261 @@
+[
+  {
+    "SecurityGroups": [
+      {
+        "GroupId": "sg-087bff42e934b9e4a",
+        "IpPermissionsEgress": [
+          {
+            "IpProtocol": "-1",
+            "UserIdGroupPairs": [],
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": []
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "aws:cloudformation:stack-name",
+            "Value": "mig-legacy-all"
+          },
+          {
+            "Key": "aws:cloudformation:stack-id",
+            "Value": "arn:aws:cloudformation:ap-south-1:533266974611:stack/mig-legacy-all/8b2b44f0-b935-11f1-8e4f-02809389843b"
+          },
+          {
+            "Key": "Name",
+            "Value": "app-orders-sg"
+          },
+          {
+            "Key": "aws:cloudformation:logical-id",
+            "Value": "OrdersSG"
+          }
+        ],
+        "VpcId": "vpc-0bc12dd6664275ce7",
+        "SecurityGroupArn": "arn:aws:ec2:ap-south-1:533266974611:security-group/sg-087bff42e934b9e4a",
+        "OwnerId": "533266974611",
+        "GroupName": "mig-legacy-all-OrdersSG-qdPvQd6RTfzy",
+        "Description": "app-orders SG - deliberately open",
+        "IpPermissions": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 8080,
+            "ToPort": 8080,
+            "UserIdGroupPairs": [],
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              },
+              {
+                "CidrIp": "10.20.0.0/16"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": []
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 22,
+            "ToPort": 22,
+            "UserIdGroupPairs": [],
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": []
+          }
+        ]
+      },
+      {
+        "GroupId": "sg-0fd86f5d7e4281934",
+        "IpPermissionsEgress": [
+          {
+            "IpProtocol": "-1",
+            "UserIdGroupPairs": [],
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": []
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "aws:cloudformation:logical-id",
+            "Value": "CatalogSG"
+          },
+          {
+            "Key": "aws:cloudformation:stack-name",
+            "Value": "mig-legacy-all"
+          },
+          {
+            "Key": "aws:cloudformation:stack-id",
+            "Value": "arn:aws:cloudformation:ap-south-1:533266974611:stack/mig-legacy-all/8b2b44f0-b935-11f1-8e4f-02809389843b"
+          },
+          {
+            "Key": "Name",
+            "Value": "app-catalog-sg"
+          }
+        ],
+        "VpcId": "vpc-0bc12dd6664275ce7",
+        "SecurityGroupArn": "arn:aws:ec2:ap-south-1:533266974611:security-group/sg-0fd86f5d7e4281934",
+        "OwnerId": "533266974611",
+        "GroupName": "mig-legacy-all-CatalogSG-IRrjOvYzjT0G",
+        "Description": "app-catalog SG - deliberately open",
+        "IpPermissions": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 8080,
+            "ToPort": 8080,
+            "UserIdGroupPairs": [
+              {
+                "UserId": "533266974611",
+                "GroupId": "sg-00a29de5c22c2db87"
+              }
+            ],
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              },
+              {
+                "CidrIp": "10.20.0.0/16"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": []
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 22,
+            "ToPort": 22,
+            "UserIdGroupPairs": [],
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": []
+          }
+        ]
+      },
+      {
+        "GroupId": "sg-065d0452162327c39",
+        "IpPermissionsEgress": [
+          {
+            "IpProtocol": "-1",
+            "UserIdGroupPairs": [],
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": []
+          }
+        ],
+        "VpcId": "vpc-0bc12dd6664275ce7",
+        "SecurityGroupArn": "arn:aws:ec2:ap-south-1:533266974611:security-group/sg-065d0452162327c39",
+        "OwnerId": "533266974611",
+        "GroupName": "default",
+        "Description": "default VPC security group",
+        "IpPermissions": [
+          {
+            "IpProtocol": "-1",
+            "UserIdGroupPairs": [
+              {
+                "UserId": "533266974611",
+                "GroupId": "sg-065d0452162327c39"
+              }
+            ],
+            "IpRanges": [],
+            "Ipv6Ranges": [],
+            "PrefixListIds": []
+          }
+        ]
+      },
+      {
+        "GroupId": "sg-00a29de5c22c2db87",
+        "IpPermissionsEgress": [
+          {
+            "IpProtocol": "-1",
+            "UserIdGroupPairs": [],
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": []
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "app-pricing-sg"
+          },
+          {
+            "Key": "aws:cloudformation:stack-id",
+            "Value": "arn:aws:cloudformation:ap-south-1:533266974611:stack/mig-legacy-all/8b2b44f0-b935-11f1-8e4f-02809389843b"
+          },
+          {
+            "Key": "aws:cloudformation:logical-id",
+            "Value": "PricingSG"
+          },
+          {
+            "Key": "aws:cloudformation:stack-name",
+            "Value": "mig-legacy-all"
+          }
+        ],
+        "VpcId": "vpc-0bc12dd6664275ce7",
+        "SecurityGroupArn": "arn:aws:ec2:ap-south-1:533266974611:security-group/sg-00a29de5c22c2db87",
+        "OwnerId": "533266974611",
+        "GroupName": "mig-legacy-all-PricingSG-cMkLpanD67an",
+        "Description": "app-pricing SG - deliberately open",
+        "IpPermissions": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 8080,
+            "ToPort": 8080,
+            "UserIdGroupPairs": [
+              {
+                "UserId": "533266974611",
+                "GroupId": "sg-087bff42e934b9e4a"
+              }
+            ],
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              },
+              {
+                "CidrIp": "10.20.0.0/16"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": []
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 22,
+            "ToPort": 22,
+            "UserIdGroupPairs": [],
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": []
+          }
+        ]
+      }
+    ]
+  }
+]

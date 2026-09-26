@@ -1,0 +1,248 @@
+[
+  {
+    "app_id": "app-catalog",
+    "source": "real",
+    "name": "app-catalog",
+    "owner": "team-x",
+    "business_unit": null,
+    "runtime": {
+      "type": "ec2",
+      "instance_ids": [
+        "i-0032be4a13c7f0ab3"
+      ],
+      "ami_id": "ami-05afd67c4a44cc983",
+      "ami_age_days": 1293,
+      "ami_age_reason": null,
+      "instance_type": "t3.micro",
+      "port": 8080,
+      "stateful": false
+    },
+    "network": {
+      "vpc_id": "vpc-0bc12dd6664275ce7",
+      "vpc_has_private_subnet": false,
+      "subnet_public": true,
+      "public_ip": true,
+      "private_ip": "10.10.1.61",
+      "sg_ids": [
+        "sg-0fd86f5d7e4281934"
+      ],
+      "sg_ingress": [
+        {
+          "port": 8080,
+          "cidr": "0.0.0.0/0",
+          "source_sg": null
+        },
+        {
+          "port": 8080,
+          "cidr": "10.20.0.0/16",
+          "source_sg": null
+        },
+        {
+          "port": 8080,
+          "cidr": null,
+          "source_sg": "sg-00a29de5c22c2db87"
+        },
+        {
+          "port": 22,
+          "cidr": "0.0.0.0/0",
+          "source_sg": null
+        }
+      ]
+    },
+    "storage": {
+      "ebs_encrypted": false,
+      "volume_gb": 8,
+      "extra_volume_gb": 0
+    },
+    "metadata": {
+      "imds_v2_required": false
+    },
+    "config": {
+      "env": {}
+    },
+    "license": "none",
+    "depends_on": [],
+    "tags": {
+      "Name": "app-catalog",
+      "owner": "team-x",
+      "cost-center": "cc-1",
+      "data-class": "internal",
+      "findings": "SG_OPEN_SSH,SG_OPEN_APP,EBS_UNENCRYPTED,IMDSV1,OLD_AMI,NO_VPC_SEGMENTATION,PUBLIC_IP"
+    },
+    "findings": [
+      "SG_OPEN_SSH",
+      "SG_OPEN_APP",
+      "EBS_UNENCRYPTED",
+      "IMDSV1",
+      "OLD_AMI",
+      "NO_VPC_SEGMENTATION",
+      "PUBLIC_IP"
+    ],
+    "status": "TIERED"
+  },
+  {
+    "app_id": "app-pricing",
+    "source": "real",
+    "name": "app-pricing",
+    "owner": null,
+    "business_unit": null,
+    "runtime": {
+      "type": "ec2",
+      "instance_ids": [
+        "i-083cbe5dc9b43a3a3"
+      ],
+      "ami_id": "ami-05afd67c4a44cc983",
+      "ami_age_days": 1293,
+      "ami_age_reason": null,
+      "instance_type": "t3.micro",
+      "port": 8080,
+      "stateful": false
+    },
+    "network": {
+      "vpc_id": "vpc-0bc12dd6664275ce7",
+      "vpc_has_private_subnet": false,
+      "subnet_public": true,
+      "public_ip": true,
+      "private_ip": "10.10.1.138",
+      "sg_ids": [
+        "sg-00a29de5c22c2db87"
+      ],
+      "sg_ingress": [
+        {
+          "port": 8080,
+          "cidr": "0.0.0.0/0",
+          "source_sg": null
+        },
+        {
+          "port": 8080,
+          "cidr": "10.20.0.0/16",
+          "source_sg": null
+        },
+        {
+          "port": 8080,
+          "cidr": null,
+          "source_sg": "sg-087bff42e934b9e4a"
+        },
+        {
+          "port": 22,
+          "cidr": "0.0.0.0/0",
+          "source_sg": null
+        }
+      ]
+    },
+    "storage": {
+      "ebs_encrypted": false,
+      "volume_gb": 8,
+      "extra_volume_gb": 0
+    },
+    "metadata": {
+      "imds_v2_required": false
+    },
+    "config": {
+      "env": {
+        "CATALOG_URL": "http://10.10.1.61:8080"
+      }
+    },
+    "license": "none",
+    "depends_on": [
+      "app-catalog"
+    ],
+    "tags": {
+      "Name": "app-pricing",
+      "depends-on": "app-catalog",
+      "findings": "SG_OPEN_SSH,SG_OPEN_APP,EBS_UNENCRYPTED,IMDSV1,OLD_AMI,NO_VPC_SEGMENTATION,PUBLIC_IP,MISSING_TAGS"
+    },
+    "findings": [
+      "SG_OPEN_SSH",
+      "SG_OPEN_APP",
+      "EBS_UNENCRYPTED",
+      "IMDSV1",
+      "OLD_AMI",
+      "NO_VPC_SEGMENTATION",
+      "PUBLIC_IP",
+      "MISSING_TAGS",
+      "HARDCODED_IP"
+    ],
+    "status": "TIERED"
+  },
+  {
+    "app_id": "app-orders",
+    "source": "real",
+    "name": "app-orders",
+    "owner": null,
+    "business_unit": null,
+    "runtime": {
+      "type": "ec2",
+      "instance_ids": [
+        "i-0760301add067febd"
+      ],
+      "ami_id": "ami-05afd67c4a44cc983",
+      "ami_age_days": 1293,
+      "ami_age_reason": null,
+      "instance_type": "t3.micro",
+      "port": 8080,
+      "stateful": false
+    },
+    "network": {
+      "vpc_id": "vpc-0bc12dd6664275ce7",
+      "vpc_has_private_subnet": false,
+      "subnet_public": true,
+      "public_ip": true,
+      "private_ip": "10.10.1.30",
+      "sg_ids": [
+        "sg-087bff42e934b9e4a"
+      ],
+      "sg_ingress": [
+        {
+          "port": 8080,
+          "cidr": "0.0.0.0/0",
+          "source_sg": null
+        },
+        {
+          "port": 8080,
+          "cidr": "10.20.0.0/16",
+          "source_sg": null
+        },
+        {
+          "port": 22,
+          "cidr": "0.0.0.0/0",
+          "source_sg": null
+        }
+      ]
+    },
+    "storage": {
+      "ebs_encrypted": false,
+      "volume_gb": 8,
+      "extra_volume_gb": 0
+    },
+    "metadata": {
+      "imds_v2_required": false
+    },
+    "config": {
+      "env": {
+        "PRICING_URL": "http://10.10.1.138:8080"
+      }
+    },
+    "license": "none",
+    "depends_on": [
+      "app-pricing"
+    ],
+    "tags": {
+      "Name": "app-orders",
+      "depends-on": "app-pricing",
+      "findings": "SG_OPEN_SSH,SG_OPEN_APP,EBS_UNENCRYPTED,IMDSV1,OLD_AMI,NO_VPC_SEGMENTATION,PUBLIC_IP,MISSING_TAGS,HARDCODED_IP"
+    },
+    "findings": [
+      "SG_OPEN_SSH",
+      "SG_OPEN_APP",
+      "EBS_UNENCRYPTED",
+      "IMDSV1",
+      "OLD_AMI",
+      "NO_VPC_SEGMENTATION",
+      "PUBLIC_IP",
+      "MISSING_TAGS",
+      "HARDCODED_IP"
+    ],
+    "status": "TIERED"
+  }
+]

@@ -1,0 +1,30 @@
+{
+  "plan_id": "plan-001",
+  "generated_at": "2026-09-26T10:02:00Z",
+  "capacity_per_wave": 40,
+  "waves_per_week": 3,
+  "waves": [
+    {
+      "wave": 0,
+      "name": "Pilot",
+      "start": "2026-09-28",
+      "app_ids": [
+        "app-catalog",
+        "app-pricing",
+        "app-orders"
+      ],
+      "tier_mix": {
+        "GOLDEN": 3
+      },
+      "rationale": "Real pilot apps; providers first (catalog -> pricing -> orders)."
+    }
+  ],
+  "parked": [],
+  "projection": {
+    "apps_total": 3,
+    "apps_schedulable": 3,
+    "projected_finish": "2026-09-28",
+    "apps_per_day": 1.5,
+    "meets_target_2027": true
+  }
+}

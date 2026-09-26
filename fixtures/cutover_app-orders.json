@@ -1,0 +1,25 @@
+{
+  "run_id": "cut-0002",
+  "app_id": "app-orders",
+  "steps": [
+    10,
+    50,
+    100
+  ],
+  "history": [
+    {
+      "weight": 10,
+      "ts": "2026-09-26T10:20:20Z",
+      "error_rate": 0.38,
+      "p95_ms": 41.0,
+      "target_share": 0.1,
+      "gate": "FAIL"
+    }
+  ],
+  "result": "ROLLED_BACK",
+  "rollback": {
+    "at_weight": 10,
+    "reason": "error_rate 0.38 > 0.02"
+  },
+  "explanation": "At 10% the target copy returned HTTP 500 on / (UPSTREAM_URL missing, REQUIRE_UPSTREAM=1) while /health stayed 200, so the ALB kept it healthy but the traffic gate failed. Weights restored to 100/0."
+}

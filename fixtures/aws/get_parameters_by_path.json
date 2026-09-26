@@ -1,0 +1,24 @@
+[
+  {
+    "Parameters": [
+      {
+        "Name": "/legacy/app-orders/PRICING_URL",
+        "Type": "String",
+        "Value": "http://10.10.1.138:8080",
+        "Version": 1,
+        "LastModifiedDate": "2026-09-26T04:36:06.880000+05:30",
+        "ARN": "arn:aws:ssm:ap-south-1:533266974611:parameter/legacy/app-orders/PRICING_URL",
+        "DataType": "text"
+      },
+      {
+        "Name": "/legacy/app-pricing/CATALOG_URL",
+        "Type": "String",
+        "Value": "http://10.10.1.61:8080",
+        "Version": 1,
+        "LastModifiedDate": "2026-09-26T04:35:52.154000+05:30",
+        "ARN": "arn:aws:ssm:ap-south-1:533266974611:parameter/legacy/app-pricing/CATALOG_URL",
+        "DataType": "text"
+      }
+    ]
+  }
+]

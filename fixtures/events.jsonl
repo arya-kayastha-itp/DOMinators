@@ -1,0 +1,54 @@
+{"id": 1, "ts": "2026-09-26T10:00:00Z", "agent": "discovery", "app_id": null, "type": "DISCOVERY_STARTED", "level": "info", "payload": {"scope": "real"}}
+{"id": 2, "ts": "2026-09-26T10:00:02Z", "agent": "discovery", "app_id": "app-catalog", "type": "APP_DISCOVERED", "level": "info", "payload": {"findings": ["SG_OPEN_SSH", "SG_OPEN_APP", "EBS_UNENCRYPTED", "IMDSV1", "OLD_AMI", "NO_VPC_SEGMENTATION", "PUBLIC_IP"]}}
+{"id": 3, "ts": "2026-09-26T10:00:03Z", "agent": "discovery", "app_id": "app-pricing", "type": "APP_DISCOVERED", "level": "info", "payload": {"findings": ["SG_OPEN_SSH", "SG_OPEN_APP", "EBS_UNENCRYPTED", "IMDSV1", "OLD_AMI", "NO_VPC_SEGMENTATION", "PUBLIC_IP", "MISSING_TAGS", "HARDCODED_IP"]}}
+{"id": 4, "ts": "2026-09-26T10:00:04Z", "agent": "discovery", "app_id": "app-orders", "type": "APP_DISCOVERED", "level": "info", "payload": {"findings": ["SG_OPEN_SSH", "SG_OPEN_APP", "EBS_UNENCRYPTED", "IMDSV1", "OLD_AMI", "NO_VPC_SEGMENTATION", "PUBLIC_IP", "MISSING_TAGS", "HARDCODED_IP"]}}
+{"id": 5, "ts": "2026-09-26T10:00:05Z", "agent": "discovery", "app_id": null, "type": "DISCOVERY_DONE", "level": "info", "payload": {"apps_total": 3, "real": 3, "synthetic": 0, "tiers": {"GOLDEN": 3, "GRAY": 0, "RED": 0}, "findings": {"SG_OPEN_SSH": 3, "SG_OPEN_APP": 3, "EBS_UNENCRYPTED": 3, "IMDSV1": 3, "OLD_AMI": 3, "NO_VPC_SEGMENTATION": 3, "PUBLIC_IP": 3, "MISSING_TAGS": 2, "HARDCODED_IP": 2}, "edges": 2, "llm_decisions": 0, "duration_ms": 4200}}
+{"id": 6, "ts": "2026-09-26T10:02:00Z", "agent": "planning", "app_id": null, "type": "PLAN_DONE", "level": "info", "payload": {"plan_id": "plan-001", "waves": 1, "parked": 0}}
+{"id": 7, "ts": "2026-09-26T10:05:00Z", "agent": "blueprint", "app_id": "app-catalog", "type": "TOOL_CALL", "level": "info", "payload": {"tool": "set_golden_inputs", "input": {"name": "app-catalog"}}}
+{"id": 8, "ts": "2026-09-26T10:05:05Z", "agent": "blueprint", "app_id": "app-catalog", "type": "BLUEPRINT_READY", "level": "info", "payload": {"fixes": 7, "gaps": 0}}
+{"id": 9, "ts": "2026-09-26T10:06:10Z", "agent": "blueprint", "app_id": "app-catalog", "type": "PROVISIONED", "level": "info", "payload": {"tg_target_arn": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:targetgroup/tg-app-catalog-target/23ffea897f6d8bad"}}
+{"id": 10, "ts": "2026-09-26T10:06:30Z", "agent": "blueprint", "app_id": "app-pricing", "type": "TOOL_CALL", "level": "info", "payload": {"tool": "set_golden_inputs", "input": {"name": "app-pricing"}}}
+{"id": 11, "ts": "2026-09-26T10:06:35Z", "agent": "blueprint", "app_id": "app-pricing", "type": "BLUEPRINT_READY", "level": "info", "payload": {"fixes": 7, "gaps": 3}}
+{"id": 12, "ts": "2026-09-26T10:07:40Z", "agent": "blueprint", "app_id": "app-pricing", "type": "PROVISIONED", "level": "info", "payload": {"tg_target_arn": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:targetgroup/tg-app-pricing-target/ea86754954546453"}}
+{"id": 13, "ts": "2026-09-26T10:08:00Z", "agent": "cutover", "app_id": "app-catalog", "type": "CUTOVER_STARTED", "level": "info", "payload": {"steps": [10, 50, 100]}}
+{"id": 14, "ts": "2026-09-26T10:08:01Z", "agent": "cutover", "app_id": "app-catalog", "type": "WEIGHT_SET", "level": "info", "payload": {"weight": 10}}
+{"id": 15, "ts": "2026-09-26T10:08:20Z", "agent": "cutover", "app_id": "app-catalog", "type": "GATE_PASS", "level": "info", "payload": {"weight": 10, "error_rate": 0.0, "p95_ms": 120}}
+{"id": 16, "ts": "2026-09-26T10:08:26Z", "agent": "cutover", "app_id": "app-catalog", "type": "WEIGHT_SET", "level": "info", "payload": {"weight": 50}}
+{"id": 17, "ts": "2026-09-26T10:08:45Z", "agent": "cutover", "app_id": "app-catalog", "type": "GATE_PASS", "level": "info", "payload": {"weight": 50, "error_rate": 0.0, "p95_ms": 120}}
+{"id": 18, "ts": "2026-09-26T10:08:51Z", "agent": "cutover", "app_id": "app-catalog", "type": "WEIGHT_SET", "level": "info", "payload": {"weight": 100}}
+{"id": 19, "ts": "2026-09-26T10:09:10Z", "agent": "cutover", "app_id": "app-catalog", "type": "GATE_PASS", "level": "info", "payload": {"weight": 100, "error_rate": 0.0, "p95_ms": 120}}
+{"id": 20, "ts": "2026-09-26T10:09:20Z", "agent": "cutover", "app_id": "app-catalog", "type": "MIGRATED", "level": "info", "payload": {"explanation": "All gates passed."}}
+{"id": 21, "ts": "2026-09-26T10:09:22Z", "agent": "cutover", "app_id": "app-catalog", "type": "SIM_DECOMMISSION", "level": "info", "payload": {"legacy_instance": "scheduled"}}
+{"id": 22, "ts": "2026-09-26T10:09:23Z", "agent": "cutover", "app_id": "app-catalog", "type": "SIM_NOTIFY", "level": "info", "payload": {"channel": "#migrations"}}
+{"id": 23, "ts": "2026-09-26T10:09:40Z", "agent": "cutover", "app_id": "app-pricing", "type": "CUTOVER_STARTED", "level": "info", "payload": {"steps": [10, 50, 100]}}
+{"id": 24, "ts": "2026-09-26T10:09:41Z", "agent": "cutover", "app_id": "app-pricing", "type": "WEIGHT_SET", "level": "info", "payload": {"weight": 10}}
+{"id": 25, "ts": "2026-09-26T10:10:00Z", "agent": "cutover", "app_id": "app-pricing", "type": "GATE_PASS", "level": "info", "payload": {"weight": 10, "error_rate": 0.0, "p95_ms": 120}}
+{"id": 26, "ts": "2026-09-26T10:10:06Z", "agent": "cutover", "app_id": "app-pricing", "type": "WEIGHT_SET", "level": "info", "payload": {"weight": 50}}
+{"id": 27, "ts": "2026-09-26T10:10:25Z", "agent": "cutover", "app_id": "app-pricing", "type": "GATE_PASS", "level": "info", "payload": {"weight": 50, "error_rate": 0.0, "p95_ms": 120}}
+{"id": 28, "ts": "2026-09-26T10:10:31Z", "agent": "cutover", "app_id": "app-pricing", "type": "WEIGHT_SET", "level": "info", "payload": {"weight": 100}}
+{"id": 29, "ts": "2026-09-26T10:10:50Z", "agent": "cutover", "app_id": "app-pricing", "type": "GATE_PASS", "level": "info", "payload": {"weight": 100, "error_rate": 0.0, "p95_ms": 120}}
+{"id": 30, "ts": "2026-09-26T10:11:00Z", "agent": "cutover", "app_id": "app-pricing", "type": "MIGRATED", "level": "info", "payload": {"explanation": "All gates passed."}}
+{"id": 31, "ts": "2026-09-26T10:11:02Z", "agent": "cutover", "app_id": "app-pricing", "type": "SIM_DECOMMISSION", "level": "info", "payload": {"legacy_instance": "scheduled"}}
+{"id": 32, "ts": "2026-09-26T10:11:03Z", "agent": "cutover", "app_id": "app-pricing", "type": "SIM_NOTIFY", "level": "info", "payload": {"channel": "#migrations"}}
+{"id": 33, "ts": "2026-09-26T10:11:20Z", "agent": "blueprint", "app_id": "app-orders", "type": "TOOL_CALL", "level": "info", "payload": {"tool": "set_golden_inputs", "input": {"name": "app-orders"}}}
+{"id": 34, "ts": "2026-09-26T10:11:21Z", "agent": "blueprint", "app_id": "app-orders", "type": "LLM_FALLBACK", "level": "warn", "payload": {"reason": "LLM_BACKEND=off"}}
+{"id": 35, "ts": "2026-09-26T10:11:25Z", "agent": "blueprint", "app_id": "app-orders", "type": "BLUEPRINT_READY", "level": "info", "payload": {"fixes": 9, "gaps": 3, "bad_wave": true}}
+{"id": 36, "ts": "2026-09-26T10:12:30Z", "agent": "blueprint", "app_id": "app-orders", "type": "PROVISIONED", "level": "info", "payload": {"tg_target_arn": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:targetgroup/tg-app-orders-target/319cef1246934b13"}}
+{"id": 37, "ts": "2026-09-26T10:13:00Z", "agent": "cutover", "app_id": "app-orders", "type": "CUTOVER_STARTED", "level": "info", "payload": {"steps": [10, 50, 100]}}
+{"id": 38, "ts": "2026-09-26T10:13:01Z", "agent": "cutover", "app_id": "app-orders", "type": "WEIGHT_SET", "level": "info", "payload": {"weight": 10}}
+{"id": 39, "ts": "2026-09-26T10:13:20Z", "agent": "cutover", "app_id": "app-orders", "type": "GATE_FAIL", "level": "error", "payload": {"weight": 10, "error_rate": 0.38, "threshold": 0.02}}
+{"id": 40, "ts": "2026-09-26T10:13:21Z", "agent": "cutover", "app_id": "app-orders", "type": "WEIGHT_SET", "level": "info", "payload": {"weight": 0}}
+{"id": 41, "ts": "2026-09-26T10:13:21Z", "agent": "cutover", "app_id": "app-orders", "type": "ROLLED_BACK", "level": "error", "payload": {"at_weight": 10, "reason": "error_rate 0.38 > 0.02"}}
+{"id": 42, "ts": "2026-09-26T10:14:00Z", "agent": "blueprint", "app_id": "app-orders", "type": "BLUEPRINT_READY", "level": "info", "payload": {"fixes": 9, "gaps": 3, "bad_wave": false, "retry": true}}
+{"id": 43, "ts": "2026-09-26T10:15:10Z", "agent": "blueprint", "app_id": "app-orders", "type": "PROVISIONED", "level": "info", "payload": {"tg_target_arn": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:targetgroup/tg-app-orders-target/319cef1246934b13"}}
+{"id": 44, "ts": "2026-09-26T10:15:40Z", "agent": "cutover", "app_id": "app-orders", "type": "CUTOVER_STARTED", "level": "info", "payload": {"steps": [10, 50, 100], "retry": true}}
+{"id": 45, "ts": "2026-09-26T10:15:41Z", "agent": "cutover", "app_id": "app-orders", "type": "WEIGHT_SET", "level": "info", "payload": {"weight": 10}}
+{"id": 46, "ts": "2026-09-26T10:16:00Z", "agent": "cutover", "app_id": "app-orders", "type": "GATE_PASS", "level": "info", "payload": {"weight": 10, "error_rate": 0.0, "p95_ms": 119}}
+{"id": 47, "ts": "2026-09-26T10:16:06Z", "agent": "cutover", "app_id": "app-orders", "type": "WEIGHT_SET", "level": "info", "payload": {"weight": 50}}
+{"id": 48, "ts": "2026-09-26T10:16:25Z", "agent": "cutover", "app_id": "app-orders", "type": "GATE_PASS", "level": "info", "payload": {"weight": 50, "error_rate": 0.0, "p95_ms": 119}}
+{"id": 49, "ts": "2026-09-26T10:16:31Z", "agent": "cutover", "app_id": "app-orders", "type": "WEIGHT_SET", "level": "info", "payload": {"weight": 100}}
+{"id": 50, "ts": "2026-09-26T10:16:50Z", "agent": "cutover", "app_id": "app-orders", "type": "GATE_PASS", "level": "info", "payload": {"weight": 100, "error_rate": 0.0, "p95_ms": 119}}
+{"id": 51, "ts": "2026-09-26T10:17:00Z", "agent": "cutover", "app_id": "app-orders", "type": "MIGRATED", "level": "info", "payload": {"explanation": "All gates passed after the fix."}}
+{"id": 52, "ts": "2026-09-26T10:17:02Z", "agent": "cutover", "app_id": "app-orders", "type": "SIM_DATA_MIGRATION", "level": "info", "payload": {"note": "stateless, nothing to copy"}}
+{"id": 53, "ts": "2026-09-26T10:17:03Z", "agent": "cutover", "app_id": "app-orders", "type": "SIM_DECOMMISSION", "level": "info", "payload": {"legacy_instance": "scheduled"}}
+{"id": 54, "ts": "2026-09-26T10:17:04Z", "agent": "cutover", "app_id": null, "type": "SIM_NOTIFY", "level": "info", "payload": {"channel": "#migrations", "text": "Wave 0 complete: 3/3 migrated"}}

@@ -155,8 +155,10 @@ checks of the edge ALB._
       `200` (local and external) (2026-09-26)
 - [ ] Legacy Juice Shop IP registered in `tg-app-juice-shop-legacy`
       (`AvailabilityZone=all`); `curl <alb>:3000/` → 200 via peering
-- [ ] Track 2: Wave 0 / expected-findings tests updated for the 3 new apps
-      (Juice Shop → Golden, Gitea + Vaultwarden → Red via `STATEFUL`)
+- [x] Track 2: new apps handled — live Discovery gives Juice Shop GOLDEN (100),
+      Gitea + Vaultwarden RED (30, `STATEFUL`); Wave 0 rule is now "every real app that
+      isn't parked" → catalog → pricing → orders → juice-shop (2026-09-26). The
+      fixtures/tests still use the 3 original apps (see §7)
 - [ ] Track 3: Blueprint passes `app_routes[app].runtime` into `golden_app` and
       handles apps with a `listener_port` (no `path_prefix`)
 - [ ] `envs/target` listener rules: `lifecycle { ignore_changes = [action] }` (or
@@ -168,58 +170,108 @@ checks of the edge ALB._
 - [ ] Teammates with an existing Windows clone re-checkout `*.py` / `*.tpl` / `*.yaml`
       once so the new `.gitattributes` LF rule applies (see ACCOUNT_B_SETUP §3)
 - [ ] T1-5 Every developer has CLI access to Account B + can assume `mig-agent-runner`;
-      `.env.example` lists all required variables
+      `.env.example` lists all required variables — `.env.example` part done; Track 2
+      now runs from the Account B owner's machine (Hem can't install the AWS CLI), so
+      per-developer access is only needed for whoever else runs agents against AWS
 - [ ] T1-6 Account A drift reconciled (manual SG ingress + return route) — live stack
       matches the template
 - [ ] T1-7 `scripts/register_legacy_targets.sh`
 - [ ] T1-8 `make demo-reset` + `make demo-check`
 - [ ] T1-9 Timed teardown/rebuild < 20 min; Budgets alarm in both accounts
 - [ ] T1-10 Decide whether to rotate the ExternalId committed in ACCOUNT_B_SETUP.md
-- [ ] All 9 findings confirmed present by an actual scan (closes with T2-D-8)
+- [x] All findings confirmed present by an actual scan: the live Discovery run on the
+      6 real apps produced all 10 codes (incl. `STATEFUL` on Gitea/Vaultwarden)
 - [ ] Bad-wave behaviour verified live on a deployed target `app-orders` (closes with T3-B-8)
 
 ### 7. G0 contract freeze — Track 2 / A2 (+ A1) — **H+2**
-- [ ] T2-G0-1 `agents/common/models.py` (all CONTRACTS shapes + addendum)
-- [ ] T2-G0-2 `store.py` / `events.py` signatures
-- [ ] T2-G0-3 Agent entry-point stubs for all 4 agents
-- [ ] T2-G0-4 `fixtures/` (apps, tiers, edges, plan, summary, blueprint, cutovers,
-      traffic, `events.jsonl`)
-- [ ] T2-G0-5 `aws.py` signatures
-- [ ] T2-G0-6 Decisions D1 (`HARDCODED_IP` on pricing) and D2 (`MISSING_TAGS` ≠ Gray)
-      recorded; `Cloud_ENVIRONMENTS.md` §4 updated if D1 accepted
+- [x] T2-G0-1 `agents/common/models.py` (all CONTRACTS shapes + addendum). Additive,
+      defaulted fields the Discovery rules need: `network.sg_ids`, `sg_ingress[].source_sg`
+      (for the `sg_ref` signal), `storage.extra_volume_gb`, `license`,
+      `runtime.ami_age_reason`, `GoldenInputs.runtime`
+- [x] T2-G0-2 `store.py` / `events.py` — implemented, not just signatures (see §8)
+- [x] T2-G0-3 Agent entry-point stubs for all 4 agents (`agents/{discovery,planning,
+      blueprint,cutover}/__init__.py: run(...)`, exact addendum signatures, replay
+      fixtures through the real store + events)
+- [x] T2-G0-4 `fixtures/` (apps, tiers, edges, plan, summary, blueprint, cutovers,
+      traffic, `events.jsonl` with 54 events) — built through the models from the live
+      account; plus raw recorded responses in `fixtures/aws/` (3 original apps)
+- [x] T2-G0-5 `aws.py` — implemented, not just signatures (see §8)
+- [x] T2-G0-6 D1 accepted (`HARDCODED_IP` on pricing; `Cloud_ENVIRONMENTS.md` §4
+      updated) and D2 accepted (`MISSING_TAGS` auto-fixable, all 3 real apps GOLDEN)
+- [ ] Track 3 reviews `blueprint_app-catalog.json`, `cutover_*.json`,
+      `traffic_app-orders.json` and fixes them in their first PR
+- [ ] Re-record `fixtures/aws/` and extend `fixtures/apps.json` etc. with
+      `app-juice-shop` / `app-gitea` / `app-vaultwarden` once Account A testing finishes
+      (all live, but deliberately left out of the fixtures while they're being tested)
 
 ### 8. Shared framework
-- [ ] T2-FW-1 `store.py` implemented + tests (A2)
-- [ ] T2-FW-2 `events.py` implemented (A2)
-- [ ] T2-FW-3 `aws.py` implemented, two-hop `legacy()` works live (A1)
-- [ ] T2-FW-4 `pytest agents/` green on fixtures with `LLM_BACKEND=mock` (A2)
+- [x] T2-FW-1 `store.py` implemented + tests (idempotent upserts, `set_status`,
+      `traffic_window`, flags, `reset`); connection setup serialized after the
+      threaded test caught a real "database is locked" race
+- [x] T2-FW-2 `events.py` implemented (monotonic ids, JSON payloads, `emit_batch`,
+      `events_since`; 100 concurrent emits from 4 threads keep unique ids, 5/5 runs)
+- [x] T2-FW-3 `aws.py` implemented; two-hop `legacy()` verified live (recorded Account A
+      through `mig-agent-runner` → `mig-discovery-readonly`); self-refreshing creds;
+      scan scoped by `LEGACY_VPC_IDS` because Account A also runs unrelated workloads
+- [x] T2-FW-4 `pytest` green on fixtures (53 tests, ~30 s incl. the 1,000-app runs) —
+      no LLM code exists yet, so `LLM_BACKEND=mock` coverage comes with T4-L-4
+- [x] `requirements.txt` + `.env.example` section for the agents (T1-5's variables);
+      local `.env` is gitignored
+- [ ] Machine note: on the Account B owner's laptop, Python takes 26–36 s to load
+      certifi's CA bundle, so boto3 connections went idle and were dropped
+      (`SSL: UNEXPECTED_EOF`). Worked around with `AWS_CA_BUNDLE` → a 5-cert Amazon-roots
+      PEM (verification still on). Worth checking whether endpoint security causes it.
+      Also: a venv inside OneDrive makes botocore's file reads very slow — use one outside
+      it (`%LOCALAPPDATA%\dominators-venv`: real Discovery 52 s → 20 s)
 - [ ] T4-L-1 `llm.py` (bedrock / anthropic / off / mock, 20 s timeout) (C1)
 - [ ] T4-L-2 `tools.py` (registry, validation, allowlist guard) (C1)
 - [ ] T4-L-3 `loop.py` (`TOOL_CALL` / `LLM_FALLBACK` events) (C1)
 - [ ] T4-L-4 LLM plumbing tests + one live Bedrock smoke test (C1)
 
 ### 9. Discovery — Track 2 / A1
-- [ ] T2-D-1 Scanner on recorded responses (`IncludeDeprecated=True`, paginated)
-- [ ] T2-D-2 Normalize → `AppRecord` (group by `app` tag, fall back to `Name`)
-- [ ] T2-D-3 10 finding rules + unit tests (effective-route-table check for
-      `NO_VPC_SEGMENTATION`)
-- [ ] T2-D-4 Dependency edges from 3 signals
-- [ ] T2-D-5 Tiering rules + borderline LLM (`submit_tiering`)
-- [ ] T2-D-6 Synthetic ingest through the same logic
-- [ ] T2-D-7 `run()` + CLI + events (batched for synthetic)
-- [ ] T2-D-8 Real scan of Account A; real responses recorded as fixtures
-- [ ] T2-D-9 Oracle test vs. the legacy `findings` tag (never an input)
+- [x] T2-D-1 `scanner.py` on recorded responses (`IncludeDeprecated=True`, paginated,
+      VPC-scoped, per-image fallback if an AMI can't be described). Tests use a small
+      fake client serving `fixtures/aws/*.json` rather than `botocore.Stubber`
+- [x] T2-D-2 `normalize.py` → `AppRecord` (group by `app` tag, fall back to `Name`;
+      `config.env` from `/legacy/<app>/<KEY>`; missing AMI → `ami_age_days: null` + reason)
+- [x] T2-D-3 `rules.py`: 10 finding rules, each unit-tested; `NO_VPC_SEGMENTATION` uses
+      the effective route table (tested against the live account's unused main RT)
+- [x] T2-D-4 `deps.py`: edges from 3 signals (tag, ssm/env, sg_ref), linear-time;
+      real edges `orders → pricing → catalog`, each with all 3 signals
+- [x] T2-D-5 `tiering.py` rules (non-EC2 runtime → GRAY per D2; commercial → RED)
+- [ ] T2-D-5 borderline → Claude via `submit_tiering` (hook written, max 8 concurrent,
+      rules on any failure) — untested until Track 4's `llm.py` exists
+- [x] T2-D-6 `synthetic.py`: `fleet.json` through the same rules → deps → tiering
+      (1,000 apps < 3 s rules-only)
+- [x] T2-D-7 `run(scope)` + CLI `python -m agents.discovery`; events incl.
+      `APP_DISCOVERED` in batches of 50 for synthetic; statuses → `TIERED`; a partial
+      scope keeps the other side's edges; re-runs are idempotent
+- [x] T2-D-8 Real scan of Account A works live (6 apps, all findings, 2 edges); real
+      responses for the 3 original apps are recorded in `fixtures/aws/`
+- [ ] Real scan < 10 s: the scan itself is ~5 s, but end to end it's ~20 s on the Account B
+      owner's laptop (CA-bundle + OneDrive overhead, see §8) — confirm on a normal machine
+- [x] T2-D-9 Oracle test vs. the legacy `findings` tag (never an input) — matches for all
+      3 recorded apps, with D1's extra `HARDCODED_IP` on pricing
 
 ### 10. Planning + synthetic fleet + integration — Track 2 / A2
-- [ ] T2-P-1…4 Park Red; graph + SCC units; topo order + wave packing (Wave 0 = the
-      3 real apps); schedule + projection
-- [ ] T2-P-5 Optional LLM rationale (template fallback)
-- [ ] T2-P-6 `run()` + CLI + `PLAN_DONE`
-- [ ] T2-P-7 Tests: 1,000 apps < 1 s, no consumer before provider, Wave 0 correct
-- [ ] T2-F-1 `data/generate_fleet.py` v1 (seed 42)
-- [ ] T2-F-2 Raw config fields only; findings computed by Discovery
-- [ ] T2-F-3 Tuned to ~60/25/15; sanity checks printed
-- [ ] T2-I-1 `STATUS.md` maintained
+- [x] T2-P-1…4 `planner.py`: Red parked; consumer → provider graph, SCCs + small
+      clusters (≤ 5) as units; priority topological packing (a unit is eligible only
+      after its providers, Golden before Gray, Gray = 2 slots, units never split);
+      Wave 0 = real apps not parked; 3/week on Mon/Wed/Fri skipping 15 Dec – 5 Jan;
+      projection
+- [x] T2-P-5 Template rationale per wave
+- [ ] T2-P-5 Optional LLM rationale — waits for Track 4's `llm.py`
+- [x] T2-P-6 `run()` + CLI `python -m agents.planning`; `PLAN_DONE`; statuses →
+      `PLANNED` / `PARKED`; errors loudly if Discovery hasn't run. Live: 1,006 apps →
+      29 waves, 155 parked, finish 2026-12-02
+- [x] T2-P-7 Tests: 1,000+ apps < 1 s; no consumer before its provider (whole fleet);
+      Wave 0 correct; capacity respected; projection moves with capacity; freeze skipped
+- [x] T2-F-1 `data/generate_fleet.py` (seed 42; teams, BUs, runtimes, stateful,
+      AMI age, licences, scale-free acyclic deps)
+- [x] T2-F-2 Raw config only, `findings` empty — Discovery's rules compute them
+- [x] T2-F-3 Tuned to 59.6 / 25.1 / 15.3 (runtime mix → 70/20/10, commercial → 2%);
+      sanity checks printed and enforced; `data/fleet.json` committed
+- [x] T2-I-1 `STATUS.md` created (Working / Broken / Next)
 - [ ] T2-I-3 `scripts/e2e_real.sh`
 
 ### 11. Blueprint/IaC — Track 3 / A3

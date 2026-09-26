@@ -1,0 +1,24 @@
+{
+  "apps_total": 3,
+  "real": 3,
+  "synthetic": 0,
+  "tiers": {
+    "GOLDEN": 3,
+    "GRAY": 0,
+    "RED": 0
+  },
+  "findings": {
+    "SG_OPEN_SSH": 3,
+    "SG_OPEN_APP": 3,
+    "EBS_UNENCRYPTED": 3,
+    "IMDSV1": 3,
+    "OLD_AMI": 3,
+    "NO_VPC_SEGMENTATION": 3,
+    "PUBLIC_IP": 3,
+    "MISSING_TAGS": 2,
+    "HARDCODED_IP": 2
+  },
+  "edges": 2,
+  "llm_decisions": 0,
+  "duration_ms": 4200
+}
