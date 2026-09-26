@@ -1,0 +1,9 @@
+# Files that end up inside EC2 user data must be LF on every OS: a CRLF
+# shebang ("#!/bin/bash\r") breaks the script on the instance, and any byte
+# change alters the user_data hash, so Terraform wants to update running
+# instances just because the checkout happened on Windows.
+*.py   text eol=lf
+*.sh   text eol=lf
+*.tpl  text eol=lf
+*.yaml text eol=lf
+*.yml  text eol=lf

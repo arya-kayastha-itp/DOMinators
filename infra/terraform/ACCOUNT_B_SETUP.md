@@ -76,8 +76,7 @@ Plus `app/server.py` (repo root) — the ~30-line
 shared app both environments' user-data run (`SERVED_BY` env var is the
 only code-level difference between legacy and target).
 
-**Two real bugs found and fixed while building this** (both now in
-`git log` on `priyansh`):
+**Real bugs found and fixed while building this** (all in `git log`):
 - `modules/edge_alb`'s and `envs/target`'s `health_check` blocks set
   `interval = 5` without an explicit `timeout`. AWS's implicit default
   timeout ended up ≥ the interval, and the API rejects that
@@ -88,6 +87,23 @@ only code-level difference between legacy and target).
   provider block. Fixed by adding `profile = "mig-target"`.
 - `.gitignore` had a generic Java `target/` rule silently swallowing the
   entire `envs/target/` directory — fixed with a narrow negation.
+- `modules/network` defined the public route table's internet route as an
+  *inline* `route` block, while `envs/target` adds the peering route as a
+  standalone `aws_route`. Terraform can't mix the two: the inline block is
+  authoritative, so the first plan after peering wanted to **delete the
+  peering route** (`10.10.0.0/16 → pcx-…`), which would have cut the ALB off
+  from Account A. Fixed by moving the internet route to its own
+  `aws_route.public_internet` (the live route was brought under it with
+  `terraform import module.network.aws_route.public_internet
+  rtb-0d8f131d2047b514d_0.0.0.0/0` — state only, no AWS change).
+- No `.gitattributes`, with `core.autocrlf=true` on Windows: checking out
+  `app/server.py` and `user_data.sh.tpl` gave them CRLF endings. Both are
+  hashed into `app-hello`'s `user_data`, so the plan wanted to change a
+  running instance — and a CRLF shebang (`#!/bin/bash\r`) would break the
+  script on any new golden_app instance launched from a Windows machine.
+  Fixed with a `.gitattributes` pinning `*.py`, `*.sh`, `*.tpl`, `*.yaml` to
+  LF. Existing Windows clones need one re-checkout of those files to pick
+  it up (delete them, then `git checkout -- <files>`).
 
 ---
 
@@ -152,16 +168,23 @@ terraform apply
 ```bash
 terraform output -json > ../../../../data/target_outputs.json   # → repo-root data/
 ```
+This is what Blueprint/Cutover are supposed to read instead of
+hardcoding anything about Account B (per `docs/CONTRACTS.md`).
 
 > **Repo move (2026-09-26):** this Terraform used to live under
 > `docs/cloud-migration-accelerator/infra/terraform/`; it is now at `infra/terraform/`
-> (and `app/`, `data/` moved to the repo root). State is remote in S3, so nothing in AWS
-> changes — but any existing local checkout must re-run
-> `terraform init -backend-config=backend-config.hcl` in the new `envs/target` (copy
-> `backend-config.hcl` / `terraform.tfvars` across, they're gitignored) and confirm
-> `terraform plan` shows **no changes**.
-This is what Blueprint/Cutover are supposed to read instead of
-hardcoding anything about Account B (per `docs/CONTRACTS.md`).
+> (and `app/`, `data/` moved to the repo root). Nothing in AWS changes, but an existing
+> local checkout must carry **three** gitignored files across, not two:
+> - `envs/target/backend-config.hcl` and `envs/target/terraform.tfvars`
+> - `bootstrap/terraform.tfstate` — bootstrap keeps its state **locally** (it can't
+>   store state in the bucket it creates). Leave this behind and Terraform loses track
+>   of the state bucket and lock table.
+>
+> Then `terraform init -backend-config=backend-config.hcl` in `envs/target` (plain
+> `terraform init` in `bootstrap`) and confirm `terraform plan` shows **no changes** in
+> both. Done and verified on the Account B owner's machine on 2026-09-26 — the first
+> plan after the move surfaced the last two bugs in §3, both now fixed. Delete the old
+> folder afterwards so a stale second copy of the bootstrap state can't diverge.
 
 ---
 

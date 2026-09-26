@@ -39,6 +39,12 @@ checks of the edge ALB._
       gp3, IMDSv2, SSM-only profile, ALB-only SG, `managed-by` tag)
 - [x] `modules/edge_alb` — ALB + per-app weighted target groups (100/0)
 - [x] `envs/target` — wires everything + golden shared resources + `app-hello`
+- [x] Public route table: internet route moved from an inline `route` block to its own
+      `aws_route.public_internet` (imported, state only) — the inline block was set to
+      delete the standalone peering route on the next apply
+- [x] `.gitattributes` pins `*.py` / `*.sh` / `*.tpl` / `*.yaml` to LF — Windows CRLF
+      checkouts changed `app-hello`'s `user_data` hash and would break the shebang on
+      new golden_app instances
 - [x] Shared app code `app/server.py` (`SERVED_BY` env var is the only env difference;
       `REQUIRE_UPSTREAM=1` + no `UPSTREAM_URL` → 500 on `/`, 200 on `/health` — the
       bad-wave behaviour, in code)
@@ -69,6 +75,11 @@ checks of the edge ALB._
 - [x] `data/target_outputs.json` generated (hand-off artifact for Blueprint/Cutover)
 - [x] Smoke test of `/hello` — `GET /hello/` → 200 `served_by: target`,
       `/hello/health` → 200 (checked 2026-09-26)
+- [x] Local checkout moved to `infra/terraform/` after the repo restructure: carried
+      over `envs/target/backend-config.hcl`, `envs/target/terraform.tfvars` **and**
+      `bootstrap/terraform.tfstate` (bootstrap's state is local); re-ran `init`;
+      `terraform plan` → **No changes** in both `bootstrap` and `envs/target`; old folder
+      deleted; `/orders/` and `/hello/` still 200 (2026-09-26)
 
 ### 5. Cross-account wiring
 - [x] VPC peering `pcx-0ae4efd1f16fc19be` — requested from B, accepted in A, `active`
@@ -90,9 +101,8 @@ checks of the edge ALB._
       `mig-tf-apply` — or record the decision to apply with the admin profile
 - [ ] T1-3 Bedrock Claude access in `ap-south-1` confirmed with one call; `LLM_MODEL_ID` in `.env`
 - [ ] T1-4 `app_routes` output in `envs/target`; re-export `data/target_outputs.json`
-- [ ] Account B owner re-runs `terraform init` in the moved `infra/terraform/envs/target`
-      (copy the gitignored `backend-config.hcl` / `terraform.tfvars`) and confirms
-      `terraform plan` shows no changes
+- [ ] Teammates with an existing Windows clone re-checkout `*.py` / `*.tpl` / `*.yaml`
+      once so the new `.gitattributes` LF rule applies (see ACCOUNT_B_SETUP §3)
 - [ ] T1-5 Every developer has CLI access to Account B + can assume `mig-agent-runner`;
       `.env.example` lists all required variables
 - [ ] T1-6 Account A drift reconciled (manual SG ingress + return route) — live stack
