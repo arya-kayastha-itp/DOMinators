@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { EASE_OUT, gsap, SplitText, useGSAP } from '@/lib/journey/gsap'
 import { PIPELINE } from '@/lib/journey/pipeline'
+import { LiveProvider } from '@/lib/journey/use-live'
 import { useReducedMotion } from '@/lib/journey/use-media'
 import { Cursor } from './cursor'
 import { FinalCta } from './final-cta'
@@ -101,6 +102,7 @@ export function Journey() {
   }, [])
 
   return (
+    <LiveProvider>
     <RouteCurtain>
       <SmoothScroll paused={!loaded || openStage !== null}>
         <div ref={root} className="journey-root">
@@ -125,5 +127,6 @@ export function Journey() {
         </div>
       </SmoothScroll>
     </RouteCurtain>
+    </LiveProvider>
   )
 }

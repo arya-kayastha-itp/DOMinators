@@ -1,12 +1,23 @@
 # Status — Working / Broken / Next
 
-_Updated 2026-09-27. Tracks 2 and 3 are done, and the **full chain has now run
-end to end against real AWS**: `scripts/e2e_real.sh` migrated `app-catalog`
-live (Discovery → Planning → Terraform apply → gated cutover → MIGRATED), then
-restored it to legacy. This file is the integration captain's running view
-(T2-I-1). `checklist.md` is the detailed record._
+_Updated 2026-09-27. Tracks 2 and 3 are done, the **full chain has run end to
+end against real AWS**, and the **console is now wired to a real orchestrator**:
+every button runs the real agent and every number comes from the store. This
+file is the integration captain's running view (T2-I-1). `checklist.md` is the
+detailed record._
 
 ## Working
+
+- **Orchestrator + console (Track 4, built by A2)** — `scripts\dev.ps1` starts
+  `uvicorn orchestrator.main:app` (:8000) and the console (:3000). FastAPI with
+  every CONTRACTS endpoint, background runs with per-app 409 locks, lifecycle
+  checks with reasons (parked apps refused), SSE with resume, watchdog, reset
+  (+ `terraform destroy`), copilot on Gemini. The console's mock layer and the
+  invented Impact page are gone; Overview has a live migration board, Cutover
+  draws one particle per real request and reads weights from the ALB, Blueprint
+  streams terraform live. Verified live: discovery (1,006 apps, 6 real), planning
+  (29 waves, finish 2026-12-02) and a real `terraform apply` of `app-catalog`
+  through the API. 16 orchestrator tests.
 
 - **End to end (T2-I-3)** — `scripts/e2e_real.sh [app]` (`--cutover-only` to
   retry step 4, `--restore` to go back to 100% legacy). Live run 2026-09-27:
@@ -16,7 +27,7 @@ restored it to legacy. This file is the integration captain's running view
   Afterwards the test instance was destroyed and local state cleared, so the
   live demo starts from a clean legacy baseline.
 - **Framework** (`agents/common/`): contract models, SQLite store, event log,
-  two-hop AWS sessions, fixture loader. `pytest` → 94 tests green.
+  two-hop AWS sessions, fixture loader. `pytest` → all green (incl. LLM + orchestrator tests).
 - **Discovery** — `python -m agents.discovery --scope real|synthetic|all`
   - Live against Account A: 6 real apps. catalog 100, pricing 90, orders 90,
     juice-shop 100 → GOLDEN; gitea and vaultwarden → RED (`STATEFUL`), score 30.
@@ -42,9 +53,15 @@ restored it to legacy. This file is the integration captain's running view
   live run (`settle_s` 2) rolled back with target share 0.03. `config.yaml` is now
   `settle_s` 15 / `observe_window_s` 35 / `min_target_share_ratio` 0.6 (see its
   comments) — Track 3 to review.
-- **Cutover needs a traffic generator running** — outside the orchestrator
-  (T4-O-8) nothing produces samples and the gate fails with "0 requests". The
-  e2e script runs one; the orchestrator must too.
+- **Cutover needs a traffic generator running** — the orchestrator starts one
+  per cutover; a bare `python -m agents.cutover` still needs one (the e2e script
+  runs its own).
+- **Not yet eyeballed by A2**: headless Edge is blocked on the A2 laptop, so the
+  rewired console is type-checked and `next build`-clean but was only looked at
+  by the user in a browser. A real cutover driven from the UI is the next check.
+- **Juice Shop can't be cut over live**: its stock image doesn't answer with
+  `served_by`, so the share gate can't tell legacy from target. It can be
+  provisioned; its cutover button explains why it's disabled.
 - **LLM on Gemini free tier**: Bedrock is out (Account B has no Marketplace
   payment method) and watsonx is out (quota spent / project not linked). The demo
   uses `gemini-3.1-flash-lite` (~1.5 s per call); all 4 hooks ran live with 0
@@ -52,10 +69,11 @@ restored it to legacy. This file is the integration captain's running view
   10 apps per run, and running Discovery twice back to back can hit the limit. That
   costs nothing but AI answers: every hook falls back to rules. The LLM mapper
   hasn't been through a real `terraform apply` yet.
-- **Parked apps are only parked by Planning**: Gitea/Vaultwarden are RED → parked
-  and have no target group or rule in Account B, but `blueprint.run` /
-  `cutover.run` don't refuse a RED app themselves — the orchestrator's lifecycle
-  check (T4-O-5) has to.
+- **Parked apps**: refused by the orchestrator (409 "parked (RED)"); a direct CLI
+  `blueprint.run` still wouldn't refuse.
+- **A golden `app-catalog` instance is running** in Account B (applied from the
+  console on 2026-09-27, PROVISIONED, traffic still 100% legacy). Use Reset +
+  destroy in the console (Ctrl K) when done, so nothing keeps costing.
 - **Account B owner's laptop is slow for AWS work**: Python needs 26–36 s to load
   certifi's CA bundle (worked around with `AWS_CA_BUNDLE`), and anything inside
   OneDrive (the venv, Terraform's provider cache) is slow — first
@@ -67,7 +85,9 @@ restored it to legacy. This file is the integration captain's running view
 
 - Every demo machine needs `GEMINI_*` in its `.env` (see `.env.example`) and
   `LLM_BACKEND=gemini`; check with `LLM_LIVE=1 pytest agents/tests/test_llm.py -k live`.
-- Track 4 (C1): orchestrator on the real agents (must autostart the traffic
-  generator, T4-O-8); `tools.py` / `loop.py`.
+- Drive a real cutover and a bad-wave rollback of `app-orders` from the UI; test
+  at projector resolution.
+- Track 4 (C1): review the orchestrator; `tools.py` / `loop.py` are still unbuilt
+  (nothing needs them yet).
 - Track 3: review the gate tuning; real bad-wave run on `app-orders`; kill test.
 - Register legacy Juice Shop in `tg-app-juice-shop-legacy` when the team says so.

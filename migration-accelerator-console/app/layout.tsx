@@ -9,7 +9,7 @@ const geistMono = Geist_Mono({ subsets: ['latin'], display: 'swap', variable: '-
 
 export const metadata: Metadata = {
   title: { default: 'Migration Accelerator', template: '%s · Migration Accelerator' },
-  description: 'Agentic cloud migration: discover, plan, blueprint and cut over thousands of apps — with deterministic guardrails.',
+  description: 'Agentic cloud migration: discover, plan, blueprint and cut over a 1,006-app fleet — with deterministic guardrails.',
   icons: {
     icon: [
       { url: '/icon-light-32x32.png', media: '(prefers-color-scheme: light)' },

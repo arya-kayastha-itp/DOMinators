@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, X } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { EASE_IN_OUT, EASE_OUT, gsap } from '@/lib/journey/gsap'
 import { PIPELINE } from '@/lib/journey/pipeline'
+import { useStages } from '@/lib/journey/use-live'
 import { useReducedMotion } from '@/lib/journey/use-media'
 import { Magnetic } from './magnetic'
 
@@ -47,7 +48,7 @@ export function StagePanel({ index, origin, onClosed }: { index: number; origin:
   const closeRef = useRef<HTMLButtonElement>(null)
   const closing = useRef(false)
   const [current, setCurrent] = useState(index)
-  const stage = PIPELINE[current]
+  const stage = useStages()[current]
   const Icon = stage.icon
 
   // OPEN — runs before paint so the disc never flashes at full size.

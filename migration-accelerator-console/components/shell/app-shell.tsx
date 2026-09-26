@@ -2,7 +2,7 @@
 
 import { Dialog } from '@base-ui/react/dialog'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeftRight, ChevronRight, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Sparkles, Sun, X } from 'lucide-react'
+import { ArrowLeftRight, ChevronRight, Menu, Moon, PanelLeftClose, PanelLeftOpen, RefreshCw, Search, Sparkles, Sun, WifiOff, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -24,11 +24,17 @@ const GROUPS = ['Program', 'Discover', 'Plan', 'Execute', 'Govern'] as const
 
 function NavList({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
   const pathname = usePathname()
-  const { agents, statuses } = useConsole()
+  const { fleet, statuses, realAppIds, demo } = useConsole()
+  const realStatuses = realAppIds.map(id => statuses[id])
+  const cuttingOver = realStatuses.includes('CUTTING_OVER')
+  const rolledBack = realStatuses.includes('ROLLED_BACK')
+  const running = demo?.running ?? []
   const badge: Record<string, React.ReactNode> = {
-    '/cutover': Object.values(statuses).includes('CUTTING_OVER') ? <span className="live-dot size-1.5 text-warning" /> : Object.values(statuses).includes('ROLLED_BACK') ? <span className="size-1.5 rounded-full bg-destructive" /> : null,
-    '/fleet': <span className="font-mono text-[10px] text-subtle">1,003</span>,
-    '/activity': agents.discovery === 'running' || agents.blueprint === 'running' || agents.cutover === 'running' ? <span className="live-dot size-1.5 text-primary" /> : null,
+    '/cutover': cuttingOver
+      ? <span className="live-dot size-1.5 text-warning" role="img" aria-label="Cutover in progress" />
+      : rolledBack ? <span className="size-1.5 rounded-full bg-destructive" role="img" aria-label="An app was rolled back" /> : null,
+    '/fleet': fleet.length > 0 ? <span className="font-mono text-[10px] text-subtle" aria-label={`${fleet.length} apps`}>{fleet.length.toLocaleString()}</span> : null,
+    '/activity': running.length > 0 ? <span className="live-dot size-1.5 text-primary" role="img" aria-label={`Running: ${running.join(', ')}`} /> : null,
   }
   return (
     <nav aria-label="Primary" className="flex flex-col gap-5">
@@ -145,6 +151,50 @@ function PipelineRail() {
   )
 }
 
+export function llmLabel(llm: { backend: string; model: string | null } | undefined) {
+  if (!llm) return 'LLM: unknown'
+  if (!llm.backend || llm.backend === 'off') return 'LLM: off (rules only)'
+  return `LLM: ${llm.backend}${llm.model ? ` · ${llm.model}` : ''}`
+}
+
+const START_CMD = 'uvicorn orchestrator.main:app --port 8000'
+
+function ConnectionStatus() {
+  const { online, loading } = useConsole()
+  if (loading && !online) return <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-border-strong" />Connecting to orchestrator…</span>
+  return online
+    ? <span className="flex items-center gap-1.5 text-success"><span className="live-dot size-1.5" />Live · orchestrator connected</span>
+    : <span className="flex items-center gap-1.5 text-destructive"><span className="size-1.5 rounded-full bg-destructive" />Orchestrator offline — start it with <code className="font-mono">{START_CMD}</code></span>
+}
+
+function OfflineBanner() {
+  const { online, loading, error, refresh } = useConsole()
+  const [retrying, setRetrying] = useState(false)
+  useEffect(() => {
+    if (!retrying) return
+    const t = setTimeout(() => setRetrying(false), 2500)
+    return () => clearTimeout(t)
+  }, [retrying])
+  if (online || loading) return null
+  return (
+    <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-xs text-destructive sm:px-6 lg:px-8">
+      <WifiOff className="size-3.5 shrink-0" aria-hidden />
+      <span className="font-medium">Orchestrator offline</span>
+      <span className="min-w-0 text-destructive/80">
+        {error ? `${error}. ` : ''}Start it with <code className="font-mono">{START_CMD}</code>
+      </span>
+      <button
+        type="button"
+        onClick={() => { setRetrying(true); refresh() }}
+        disabled={retrying}
+        className="ml-auto inline-flex h-7 items-center gap-1.5 rounded-md border border-destructive/40 bg-card px-2.5 font-medium text-foreground transition hover:border-destructive disabled:opacity-60"
+      >
+        <RefreshCw className={cn('size-3.5', retrying && 'animate-spin')} aria-hidden /> {retrying ? 'Retrying…' : 'Retry'}
+      </button>
+    </div>
+  )
+}
+
 function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
@@ -196,7 +246,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [copilot, setCopilot] = useState<{ open: boolean; prompt?: string; nonce: number }>({ open: false, nonce: 0 })
-  const { demoMode } = useConsole()
+  const { demoMode, demo } = useConsole()
 
   useEffect(() => { try { setCollapsedState(localStorage.getItem('mac.sidebar') === '1') } catch {} }, [])
   const setCollapsed = (v: boolean) => { setCollapsedState(v); try { localStorage.setItem('mac.sidebar', v ? '1' : '0') } catch {} }
@@ -238,13 +288,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar onMenu={() => setMobileOpen(true)} />
+          <OfflineBanner />
           <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 outline-none sm:px-6 lg:px-8 lg:py-8">
             {children}
           </main>
           <footer className="border-t px-4 py-4 text-xs text-subtle sm:px-6 lg:px-8">
             <div className="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-3 gap-y-1">
               <span>Migration Accelerator</span><span aria-hidden>·</span>
-              <span>Mock data mode — contract-shaped (docs/CONTRACTS.md)</span><span aria-hidden>·</span>
+              <ConnectionStatus /><span aria-hidden>·</span>
+              <span>{llmLabel(demo?.llm)}</span><span aria-hidden>·</span>
               <span>Mutations allow-listed to <code className="font-mono">managed-by=migration-accelerator</code></span>
               {!demoMode && <span className="ml-auto">Append <code className="font-mono">?demo=1</code> for demo controls</span>}
             </div>

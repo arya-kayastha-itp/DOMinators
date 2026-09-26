@@ -1,18 +1,30 @@
 # Migration Accelerator Console
 
-The judge-facing console for the Cloud Migration Accelerator (Track 4, frontend). Eight routed
-screens over one shared state: Overview, Fleet, Dependencies, Wave plan, Blueprint, Cutover,
-Activity, Impact — plus a command palette, an AI Copilot panel, and stage demo controls.
+The judge-facing console for the Cloud Migration Accelerator (Track 4, frontend), wired to the
+real orchestrator (`orchestrator/`, FastAPI). Seven routed screens — Overview, Fleet,
+Dependencies, Wave plan, Blueprint, Cutover, Activity — plus the `/journey` landing page, a
+command palette, a Copilot panel and stage demo controls. **Every number on screen comes from
+the orchestrator**; nothing is simulated in the browser.
 
 ## Run it
 
-```bash
-corepack pnpm install        # pnpm is pinned in package.json (packageManager)
-corepack pnpm dev            # http://localhost:3000
+From the repo root, one command starts both (Windows):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\dev.ps1
 ```
 
-Append `?demo=1` to any URL for the operator dock (discovery → plan → blueprint → cut over →
-bad wave → reset, in DEMO_SCRIPT order).
+or by hand:
+
+```bash
+uvicorn orchestrator.main:app --port 8000   # repo root; needs .env + data/target_outputs.json
+cd migration-accelerator-console
+corepack pnpm install                        # pnpm is pinned in package.json (packageManager)
+corepack pnpm dev                            # http://localhost:3000
+```
+
+The console talks to `NEXT_PUBLIC_API_BASE` (default `http://localhost:8000`). Append `?demo=1`
+for the operator dock. `terraform` must be on the orchestrator's PATH for blueprint apply.
 
 | Shortcut | Action |
 |---|---|
@@ -20,31 +32,37 @@ bad wave → reset, in DEMO_SCRIPT order).
 | `Ctrl/⌘ J` | Copilot panel |
 | `[` | Collapse / expand the sidebar |
 
+## What happens when you click
+
+| Button | Orchestrator call | What really runs |
+|---|---|---|
+| Run discovery | `POST /runs/discovery` | Read-only scan of Account A's legacy VPC + the synthetic fleet, tiering (LLM breaks borderline ties) |
+| Build / commit plan | `POST /runs/planning` | The real planner; the capacity slider previews via `GET /plan/preview` (not saved) |
+| Generate & apply | `POST /runs/blueprint/{app}?apply=true` | golden_app Terraform rendered and **applied into Account B**; terraform output streams into the Blueprint terminal |
+| Cut over | `POST /runs/cutover/{app}` | A traffic generator sends ~20 req/s through the **real ALB** while weights move 10 → 50 → 100% with gates; automatic rollback to 100/0 on a failed gate |
+| Run wave N | `POST /runs/wave/{n}` | Real apps: apply + cutover. Synthetic apps: blueprint dry run + simulated cutover (events say `sim`) |
+| Bad wave | `POST /demo/bad-wave` | app-orders' next blueprint drops `UPSTREAM_URL` → the gate must catch it |
+| Reset (+ destroy) | `POST /demo/reset[?destroy=true]` | Weights 100/0 everywhere, optionally `terraform destroy` every generated app, store cleared |
+
+The orchestrator refuses out-of-order runs with HTTP 409 and a reason (e.g. cutover before the
+app is PROVISIONED, anything on a parked RED app), and a second run on a busy app.
+
 ## How it's put together
 
 ```
-app/(console)/*/page.tsx        one route per screen (server components: metadata + Suspense)
+app/(console)/*/page.tsx        one route per screen
 components/views/*              the screens (client components)
 components/shell/*              sidebar, top bar, command palette, Copilot, demo dock
 components/console/console-provider.tsx
-                                global state + deterministic simulations of the 4 agents
-components/console/bits.tsx     tier/status badges, KPI cards, page header, nav model
-components/ui/primitives.tsx    Card, Badge, Tooltip, Segmented, Progress, Skeleton, CountUp…
+                                live state: REST snapshots + the SSE stream (GET /events),
+                                targeted refetch per event type, the real run actions
+components/console/traffic-flow.tsx
+                                canvas: one particle per real request, to the side that answered
+lib/api.ts                      typed orchestrator client + response shapes
+lib/live.ts                     cutover steps/gates and blueprint stages derived from events
+lib/meta.ts                     labels for backend codes (no numbers)
 lib/contracts.ts                TypeScript mirror of docs/CONTRACTS.md
-lib/data/*                      mock fleet (3 real apps + 1,000 seeded), tiering rules,
-                                planner, blueprint generator, seed events
-lib/copilot.ts                  rules-grounded Q&A over live state (cites its evidence)
 ```
-
-**Mock today, live later.** Every screen reads contract-shaped data. To connect the orchestrator,
-replace the bodies of the `run*` actions in `console-provider.tsx` with `POST /runs/*` and feed
-`events` from `GET /events` (SSE, `Last-Event-ID`) — the screens don't change.
-
-**Simulation fidelity.** The Cutover screen runs the real procedure from docs/TRACK_3: precheck →
-10 → 50 → 100% with a 5 s observe window (compressed from 20 s), ~20 req/s, deterministic gates
-(error rate ≤ 2%, p95 ≤ 800 ms, statistically-tested target share), rollback to 100/0, then an
-explanation written after the decision. The bad-wave variant breaks the target because the applied
-inputs have `REQUIRE_UPSTREAM=1` without `UPSTREAM_URL` — the same mechanism as `app/server.py`.
 
 ## Design system
 

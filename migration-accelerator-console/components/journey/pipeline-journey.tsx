@@ -4,6 +4,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { EASE_OUT, gsap, ScrollTrigger, useGSAP } from '@/lib/journey/gsap'
 import { buildPath, horizontalLayout, type Point } from '@/lib/journey/path'
 import { PIPELINE, type PipelineStage } from '@/lib/journey/pipeline'
+import { useStages } from '@/lib/journey/use-live'
 import { useDesktop, useReducedMotion } from '@/lib/journey/use-media'
 import { useLenis } from './smooth-scroll'
 import { StageCard } from './stage-card'
@@ -105,6 +106,7 @@ function StageNode({
 /* -------------------------------------------------------------------------- */
 
 function HorizontalTrack({ onOpenStage }: { onOpenStage: OpenStage }) {
+  const stages = useStages()
   const pinRef = useRef<HTMLDivElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
   const motionRef = useRef<SVGPathElement>(null)
@@ -340,7 +342,7 @@ function HorizontalTrack({ onOpenStage }: { onOpenStage: OpenStage }) {
           <div ref={packetRef} className="j-packet z-10" aria-hidden />
 
           <ol aria-label="Pipeline stages">
-            {PIPELINE.map((stage, i) => {
+            {stages.map((stage, i) => {
               const p = layout.points[i]
               return (
                 <li key={stage.id}>
@@ -381,6 +383,7 @@ function HorizontalTrack({ onOpenStage }: { onOpenStage: OpenStage }) {
 /* -------------------------------------------------------------------------- */
 
 function StackedTrack({ reduced, onOpenStage }: { reduced: boolean; onOpenStage: OpenStage }) {
+  const stages = useStages()
   const listRef = useRef<HTMLOListElement>(null)
   const nodeWrapRefs = useRef<HTMLDivElement[]>([])
   const cardRefs = useRef<HTMLElement[]>([])
@@ -474,7 +477,7 @@ function StackedTrack({ reduced, onOpenStage }: { reduced: boolean; onOpenStage:
         )}
         {!reduced && path && <div ref={packetRef} className="j-packet z-10 !size-3" aria-hidden />}
 
-        {PIPELINE.map((stage, i) => (
+        {stages.map((stage, i) => (
           <li key={stage.id} className="relative grid grid-cols-[44px_1fr] gap-4">
             <div ref={(el) => void (el && (nodeWrapRefs.current[i] = el))} className="relative mt-5 h-11">
               <StageNode

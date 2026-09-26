@@ -3,28 +3,37 @@
 import dynamic from 'next/dynamic'
 import { useRef } from 'react'
 import { EASE_IN_OUT, EASE_OUT, gsap, SplitText, useGSAP } from '@/lib/journey/gsap'
+import { fmtMonth, REFERENCE } from '@/lib/journey/pipeline'
+import { fmtInt, useLive } from '@/lib/journey/use-live'
 import { useDesktop, useReducedMotion } from '@/lib/journey/use-media'
 import { scrollToTarget, useLenis } from './smooth-scroll'
 
 // WebGL is a separate chunk that only desktop visitors download.
 const HeroField = dynamic(() => import('./hero-field'), { ssr: false })
 
-const STATS = [
-  { value: '4', label: 'agents' },
-  { value: '1,003', label: 'apps in the fleet' },
-  { value: '< 2 s', label: 'auto-rollback' },
-]
-
 export function Hero({ ready }: { ready: boolean }) {
   const root = useRef<HTMLElement>(null)
+  const introPlayed = useRef(false)
   const reduced = useReducedMotion()
   const desktop = useDesktop()
   const lenis = useLenis()
+  const { summary, online } = useLive()
+
+  // Fleet size: live from the orchestrator once discovery has run, otherwise
+  // the real fleet (6 real apps + 1,000 synthetic from fleet.json).
+  const apps = fmtInt(summary?.discovered ? summary.apps_total : REFERENCE.appsTotal)
+  const stats = [
+    { value: '4', label: 'agents' },
+    { value: apps, label: 'apps in the fleet' },
+    { value: '< 2 s', label: 'auto-rollback' },
+  ]
 
   useGSAP(
     () => {
       const q = gsap.utils.selector(root)
       if (reduced) {
+        if (introPlayed.current) return
+        introPlayed.current = true
         // Reduced motion: one gentle fade, no movement.
         gsap.fromTo(q('[data-hero-fade]'), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.6, ease: 'power1.out', stagger: 0.05 })
         return
@@ -36,11 +45,19 @@ export function Hero({ ready }: { ready: boolean }) {
       gsap.set(split.words, { yPercent: 115, rotate: 4 })
       if (!ready) return () => split.revert()
 
-      // Intro: words rise out of their masks one after another, then the
-      // supporting copy settles in.
-      const tl = gsap.timeline({ defaults: { ease: EASE_OUT } })
-      tl.to(split.words, { yPercent: 0, rotate: 0, duration: 1.5, stagger: 0.075 })
-        .to(q('[data-hero-fade]'), { autoAlpha: 1, y: 0, duration: 1.2, stagger: 0.08 }, 0.55)
+      if (introPlayed.current) {
+        // The headline number changed after the intro (live data arrived):
+        // re-split the new text and land on the end state, no second intro.
+        gsap.set(split.words, { yPercent: 0, rotate: 0 })
+        gsap.set(q('[data-hero-fade]'), { autoAlpha: 1, y: 0 })
+      } else {
+        // Intro: words rise out of their masks one after another, then the
+        // supporting copy settles in.
+        introPlayed.current = true
+        const tl = gsap.timeline({ defaults: { ease: EASE_OUT } })
+        tl.to(split.words, { yPercent: 0, rotate: 0, duration: 1.5, stagger: 0.075 })
+          .to(q('[data-hero-fade]'), { autoAlpha: 1, y: 0, duration: 1.2, stagger: 0.08 }, 0.55)
+      }
 
       // Scroll-out: the headline drifts up and fades as the pipeline arrives (scrubbed, so linear).
       gsap.to(q('[data-hero-parallax]'), {
@@ -55,7 +72,9 @@ export function Hero({ ready }: { ready: boolean }) {
 
       return () => split.revert()
     },
-    { scope: root, dependencies: [ready, reduced], revertOnUpdate: true },
+    // `apps` is a dependency because SplitText owns the headline's DOM: the h1 is
+    // keyed on it, so a new number means a fresh element to split.
+    { scope: root, dependencies: [ready, reduced, apps], revertOnUpdate: true },
   )
 
   return (
@@ -73,9 +92,9 @@ export function Hero({ ready }: { ready: boolean }) {
           Cloud Migration Accelerator — the pipeline
         </p>
 
-        <h1 id="hero-title" className="j-display">
+        <h1 key={apps} id="hero-title" className="j-display">
           <span className="block">Migrate</span>{' '}
-          <span className="block">1,003 apps.</span>{' '}
+          <span className="block">{apps} apps.</span>{' '}
           <span className="block">
             Break <em className="j-serif text-[var(--j-accent)]">nothing.</em>
           </span>
@@ -87,15 +106,27 @@ export function Hero({ ready }: { ready: boolean }) {
             roll back on their own.
           </p>
 
-          <dl data-hero-fade className="grid grid-cols-3 gap-4 md:col-span-5 md:col-start-7">
-            {STATS.map((s) => (
-              <div key={s.label} className="border-t border-[var(--j-line-strong)] pt-3">
-                <dt className="sr-only">{s.label}</dt>
-                <dd className="text-2xl font-semibold tracking-tight md:text-3xl">{s.value}</dd>
-                <dd className="mt-1 text-xs text-[var(--j-muted)]">{s.label}</dd>
-              </div>
-            ))}
-          </dl>
+          <div data-hero-fade className="md:col-span-5 md:col-start-7">
+            <dl className="grid grid-cols-3 gap-4">
+              {stats.map((s) => (
+                <div key={s.label} className="border-t border-[var(--j-line-strong)] pt-3">
+                  <dt className="sr-only">{s.label}</dt>
+                  <dd className="text-2xl font-semibold tracking-tight md:text-3xl">{s.value}</dd>
+                  <dd className="mt-1 text-xs text-[var(--j-muted)]">{s.label}</dd>
+                </div>
+              ))}
+            </dl>
+            {/* Where the numbers come from. Nothing until the first answer, so no false "offline" flash. */}
+            <p className="j-mono mt-3 flex min-h-4 items-center gap-2 text-[10.5px] tracking-wide text-[var(--j-faint)]" aria-live="polite">
+              {online === true && (
+                <>
+                  <span className="inline-block size-1.5 rounded-full bg-[var(--j-success)]" /> live from the orchestrator
+                  {summary?.plan?.projection?.projected_finish ? ` · projected finish ${fmtMonth(summary.plan.projection.projected_finish)}` : ''}
+                </>
+              )}
+              {online === false && <>orchestrator offline — showing the reference run</>}
+            </p>
+          </div>
 
           <div data-hero-fade className="md:col-span-1 md:col-start-12 md:justify-self-end">
             <button
