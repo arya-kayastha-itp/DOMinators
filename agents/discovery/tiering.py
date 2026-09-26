@@ -1,4 +1,4 @@
-"""Risk tiering: rules first (always), Claude only for borderline scores.
+"""Risk tiering: rules first (always), the LLM only for borderline scores.
 
 Score starts at 100: STATEFUL -60, unknown runtime -40, more than 5
 dependencies -15, HARDCODED_IP -10, each finding without an auto-fix -10.
@@ -17,7 +17,11 @@ from agents.common.models import AppRecord, DecidedBy, Edge, FindingCode, Tier, 
 
 AUTO_FIXABLE = set(FindingCode) - {FindingCode.STATEFUL}
 GOLDEN_MIN, GRAY_MIN, BORDERLINE = 75, 40, 5
-MAX_LLM_CONCURRENCY = 8
+# Free-tier LLM quotas are ~15 requests/minute (Gemini flash-lite), and Planning
+# plus Blueprint need a few calls of their own right after Discovery. So: at
+# most 10 borderline apps go to the LLM per run (real apps first), 4 at a time.
+MAX_LLM_CONCURRENCY = 4
+MAX_LLM_TIER_CALLS = 10
 
 
 def degrees(edges: list[Edge]) -> Counter:
@@ -99,17 +103,25 @@ def _llm_available() -> bool:
     return True
 
 
+def _choices(t: Tiering) -> list[Tier]:
+    """The two tiers either side of the threshold the score is near: the LLM
+    breaks a tie, it doesn't re-tier from scratch."""
+    return [Tier.GOLDEN, Tier.GRAY] if abs(t.score - GOLDEN_MIN) <= BORDERLINE else [Tier.GRAY, Tier.RED]
+
+
 def _llm_tier(app: AppRecord, rules: Tiering) -> Tiering:
-    """Ask Claude via the submit_tiering tool; any failure keeps the rules decision."""
+    """Ask the LLM via the submit_tiering tool; any failure (or a tier outside
+    the two allowed) keeps the rules decision."""
     from agents.common import llm
 
+    choices = [t.value for t in _choices(rules)]
     tool = {
         "name": "submit_tiering",
         "description": "Submit the migration risk tier for one app.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "tier": {"type": "string", "enum": [t.value for t in Tier]},
+                "tier": {"type": "string", "enum": choices},
                 "reasons": {"type": "array", "items": {"type": "string"}},
                 "risk_summary": {"type": "string"},
             },
@@ -118,11 +130,16 @@ def _llm_tier(app: AppRecord, rules: Tiering) -> Tiering:
     }
     system = ("You tier legacy apps for a rehost migration onto a hardened EC2 pattern. "
               "GOLDEN = safe to automate, GRAY = needs a human decision, RED = needs engineering. "
-              "Stateful apps are always RED.")
-    user = (f"Rules scored this app {rules.score} ({rules.tier.value}), close to a threshold. "
-            f"Decide the tier.\n{app.model_dump_json(exclude={'tags'})}")
+              "The pattern fixes these findings automatically, so on their own they are not blockers: "
+              f"{', '.join(sorted(c.value for c in AUTO_FIXABLE))}. "
+              "What matters is what automation can't settle: data on the instance, many dependencies, "
+              "an unusual runtime or licence. risk_summary: one or two short sentences.")
+    user = (f"Rules scored this app {rules.score}/100 ({rules.tier.value}), within {BORDERLINE} points of a "
+            f"threshold. Choose {' or '.join(choices)}.\n{app.model_dump_json(exclude={'tags'})}")
     try:
         out = llm.call_tool(system, user, tool)
+        if out.get("tier") not in choices:
+            return rules
         return Tiering(app_id=app.app_id, tier=out["tier"], score=rules.score, reasons=out["reasons"],
                        risk_summary=out["risk_summary"], decided_by=DecidedBy.LLM)
     except Exception:
@@ -134,6 +151,7 @@ def tier_all(apps: list[AppRecord], edges: list[Edge]) -> list[Tiering]:
     tiers = {a.app_id: rules_tier(a, d[a.app_id]) for a in apps}
     if _llm_available():
         borderline = [a for a in apps if _borderline(tiers[a.app_id])]
+        borderline = sorted(borderline, key=lambda a: a.source != "real")[:MAX_LLM_TIER_CALLS]
         with ThreadPoolExecutor(max_workers=MAX_LLM_CONCURRENCY) as pool:
             for t in pool.map(lambda a: _llm_tier(a, tiers[a.app_id]), borderline):
                 tiers[t.app_id] = t

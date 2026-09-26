@@ -3,7 +3,9 @@
 - `watsonx`   — IBM watsonx.ai chat API (WATSONX_* in .env; model
                 WATSONX_MODEL_ID, e.g. `ibm/granite-4-h-small`). If it fails and
                 GEMINI_API_KEY is set, the same call is retried once on Gemini.
-- `gemini`    — Google Gemini API (GEMINI_API_KEY, GEMINI_MODEL).
+- `gemini`    — Google Gemini API (GEMINI_API_KEY, GEMINI_MODEL, optional
+                GEMINI_THINKING_LEVEL). What the demo uses: flash-lite with
+                minimal thinking answers in ~1.5 s.
 - `bedrock`   — Bedrock Converse API through boto3, model LLM_MODEL_ID (an
                 inference-profile id). Blocked in Account B today: no payment
                 method for AWS Marketplace (see checklist T1-3).
@@ -14,8 +16,9 @@
                 fixtures/llm_mock/complete.json; no network.
 
 watsonx and Gemini are plain HTTPS calls (stdlib urllib, no SDKs). Every call
-has a 20 s timeout and no retries of its own: callers own the fallback to
-rules, and a slow model must not hold up a demo step.
+has a 20 s timeout. The only retry is Gemini's one wait-and-retry on 429/503
+(free-tier bursts, "high demand"); otherwise callers own the fallback to rules,
+and a slow model must not hold up a demo step.
 """
 
 from __future__ import annotations
@@ -40,6 +43,7 @@ GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:ge
 # Gemini's thinking tokens count against maxOutputTokens; a 100-token cap
 # would leave nothing for the answer.
 GEMINI_MIN_OUTPUT_TOKENS = 2048
+GEMINI_BUSY_RETRY_S = 4
 
 
 class LLMOff(RuntimeError):
@@ -47,7 +51,11 @@ class LLMOff(RuntimeError):
 
 
 class LLMError(RuntimeError):
-    """The model answered, but not with what was asked for."""
+    """The model answered, but not with what was asked for (or the API refused)."""
+
+    def __init__(self, message: str, status: int | None = None):
+        super().__init__(message)
+        self.status = status
 
 
 def backend() -> str:
@@ -88,7 +96,7 @@ def _post(url: str, *, json_body: dict | None = None, form: dict | None = None,
     except urllib.error.HTTPError as exc:
         # The body says why (bad model id, quota, schema); keys never appear in it.
         raise LLMError(f"HTTP {exc.code} from {urllib.parse.urlsplit(url).netloc}: "
-                       f"{exc.read().decode(errors='replace')[:500]}") from exc
+                       f"{exc.read().decode(errors='replace')[:500]}", status=exc.code) from exc
 
 
 def _parse_args(raw) -> dict:
@@ -158,14 +166,24 @@ def _gemini(system: str, user: str, tool: dict | None, max_tokens: int):
         "contents": [{"role": "user", "parts": [{"text": user}]}],
         "generationConfig": {"maxOutputTokens": max(max_tokens, GEMINI_MIN_OUTPUT_TOKENS), "temperature": 0},
     }
+    thinking = os.getenv("GEMINI_THINKING_LEVEL", "").strip()
+    if thinking:
+        body["generationConfig"]["thinkingConfig"] = {"thinkingLevel": thinking}
     if tool:
         body["tools"] = [{"functionDeclarations": [{
             "name": tool["name"], "description": tool.get("description", ""),
             "parametersJsonSchema": tool["input_schema"]}]}]
         body["toolConfig"] = {"functionCallingConfig": {"mode": "ANY", "allowedFunctionNames": [tool["name"]]}}
-    model = os.getenv("GEMINI_MODEL", "").strip() or "gemini-3.8-flash"
-    out = _post(GEMINI_URL.format(model=urllib.parse.quote(model)), json_body=body,
-                headers={"x-goog-api-key": _need("GEMINI_API_KEY")})
+    model = os.getenv("GEMINI_MODEL", "").strip() or "gemini-3.1-flash-lite"
+    url, headers = GEMINI_URL.format(model=urllib.parse.quote(model)), {"x-goog-api-key": _need("GEMINI_API_KEY")}
+    try:
+        out = _post(url, json_body=body, headers=headers)
+    except LLMError as exc:
+        # Free-tier bursts (429) and "high demand" (503) clear within seconds.
+        if exc.status not in (429, 503):
+            raise
+        time.sleep(GEMINI_BUSY_RETRY_S)
+        out = _post(url, json_body=body, headers=headers)
     candidates = out.get("candidates") or []
     parts = (candidates[0].get("content") or {}).get("parts", []) if candidates else []
     if not tool:

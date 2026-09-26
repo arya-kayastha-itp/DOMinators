@@ -184,6 +184,62 @@ def test_borderline_tiering_goes_to_the_llm(mock, monkeypatch):
     assert tiers["app-gitea"].decided_by == DecidedBy.RULES and tiers["app-gitea"].tier == Tier.RED  # RED never asked
 
 
+def test_llm_tier_outside_the_two_adjacent_tiers_keeps_rules(mock, tmp_path, monkeypatch):
+    (tmp_path / "submit_tiering.json").write_text(json.dumps({"tier": "RED", "reasons": [], "risk_summary": "x"}))
+    monkeypatch.setattr(llm, "MOCK_DIR", tmp_path)
+    app = _app("app-orders")
+    rules_t = tiering.rules_tier(app, 1).model_copy(update={"score": 76})  # near 75: GOLDEN or GRAY only
+    assert tiering._llm_tier(app, rules_t) == rules_t
+
+
+def test_llm_tiering_is_capped_real_apps_first(mock, monkeypatch):
+    monkeypatch.setattr(tiering, "BORDERLINE", 100)  # everything non-RED is borderline
+    monkeypatch.setattr(tiering, "MAX_LLM_TIER_CALLS", 2)
+    asked = []
+    monkeypatch.setattr(tiering, "_llm_tier", lambda a, t: asked.append(a.app_id) or t)
+    base = _app("app-catalog")
+    syn = [base.model_copy(update={"app_id": f"syn-{i}", "source": "synthetic"}) for i in range(3)]
+    tiering.tier_all(syn + fixtures.apps(), [])
+    assert len(asked) == 2 and all(not a.startswith("syn-") for a in asked)
+
+
+def test_gemini_retries_once_when_busy(monkeypatch):
+    monkeypatch.setenv("LLM_BACKEND", "gemini")
+    monkeypatch.setenv("GEMINI_API_KEY", "g")
+    monkeypatch.setattr(llm.time, "sleep", lambda s: None)
+    answers = [llm.LLMError("HTTP 429", status=429), {"candidates": [{"content": {"parts": [{"text": "ok"}]}}]}]
+
+    def post(url, **kw):
+        a = answers.pop(0)
+        if isinstance(a, Exception):
+            raise a
+        return a
+
+    monkeypatch.setattr(llm, "_post", post)
+    assert llm.complete("s", "u") == "ok"
+
+
+def test_gemini_does_not_retry_a_real_error(monkeypatch):
+    monkeypatch.setenv("LLM_BACKEND", "gemini")
+    monkeypatch.setenv("GEMINI_API_KEY", "g")
+    calls = []
+    monkeypatch.setattr(llm, "_post", _fake_post({"generativelanguage": llm.LLMError("HTTP 400", status=400)}, calls))
+    with pytest.raises(llm.LLMError):
+        llm.complete("s", "u")
+    assert len(calls) == 1
+
+
+def test_gemini_thinking_level_is_optional(monkeypatch):
+    monkeypatch.setenv("LLM_BACKEND", "gemini")
+    monkeypatch.setenv("GEMINI_API_KEY", "g")
+    monkeypatch.setenv("GEMINI_THINKING_LEVEL", "minimal")
+    calls = []
+    monkeypatch.setattr(llm, "_post", _fake_post({"generativelanguage": {"candidates": [
+        {"content": {"parts": [{"text": "ok"}]}}]}}, calls))
+    llm.complete("s", "u")
+    assert calls[0][1]["generationConfig"]["thinkingConfig"] == {"thinkingLevel": "minimal"}
+
+
 def test_mapper_uses_the_llm_but_pins_port_and_env(mock, tmp_path, monkeypatch):
     answer = json.loads((llm.MOCK_DIR / "set_golden_inputs.json").read_text())
     answer.update(port=9999, env={"UPSTREAM_URL": "http://made-up/"}, instance_type="t3.small")
@@ -197,6 +253,20 @@ def test_mapper_uses_the_llm_but_pins_port_and_env(mock, tmp_path, monkeypatch):
     assert inputs.port == rules.port and inputs.env == rules.env  # model's port/env ignored
     assert inputs.instance_type == "t3.small" and inputs.tags["cost-center"] == "cc-retail"
     assert [g.field for g in gaps] == ["cost-center"]
+
+
+def test_mapper_keeps_rules_tags_the_model_left_blank(mock, tmp_path, monkeypatch):
+    (tmp_path / "set_golden_inputs.json").write_text(json.dumps(
+        {"port": 8080, "instance_type": "t3.micro", "env": {},
+         "tags": {"owner": "team-commerce", "cost-center": "", "data_class": "confidential", "extra": "x"},
+         "gaps": [{"field": "env", "note": "noise"}, {"field": "owner", "note": "inferred"}]}))
+    monkeypatch.setattr(llm, "MOCK_DIR", tmp_path)
+    app = _app("app-orders")
+    rules, _ = mapper_rules.map_app(app)
+    inputs, gaps, used_llm = mapper_llm.map_app(app)
+    assert used_llm
+    assert inputs.tags == {**rules.tags, "owner": "team-commerce", "data-class": "confidential"}
+    assert [g.field for g in gaps] == ["owner"]
 
 
 def test_mapper_falls_back_to_rules_after_two_bad_answers(mock, tmp_path, monkeypatch):

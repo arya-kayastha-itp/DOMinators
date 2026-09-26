@@ -55,12 +55,15 @@ LOOKUP_TARGET_ENDPOINT = {
 }
 
 TOOLS = [SET_GOLDEN_INPUTS, FLAG_GAP, LOOKUP_TARGET_ENDPOINT]
+# Fields the model decides; a gap on anything else (port, env) is noise.
+GAP_FIELDS = {"instance_type", *schema.REQUIRED_TAGS}
 
 SYSTEM = (
     "You map one legacy app record onto the golden_app Terraform module's inputs. "
     "You get a deterministic rules mapping to start from: keep its port and env exactly, "
     "never put a legacy IP literal anywhere. Choose instance_type from the allowed values, "
-    "fill the owner, cost-center and data-class tags from whatever the legacy record implies, "
+    "fill the owner, cost-center and data-class tags from whatever the legacy record implies "
+    "(keep the rules value when nothing better is implied — never leave a tag empty), "
     "and list every value you had to default or guess in gaps. Call set_golden_inputs once."
 )
 
@@ -92,8 +95,13 @@ def _llm_map(app: AppRecord, rules: GoldenInputs) -> tuple[GoldenInputs, list[Ga
     for attempt in range(2):
         try:
             out = dict(llm.call_tool(SYSTEM, user, SET_GOLDEN_INPUTS))
-            gaps = [Gap.model_validate(g) for g in out.pop("gaps", [])]
-            out.update(port=rules.port, env=dict(rules.env))
+            gaps = [g for g in (Gap.model_validate(g) for g in out.pop("gaps", [])) if g.field in GAP_FIELDS]
+            # Only the rules' tag keys (the required three) — models like to add
+            # `cost_center` duplicates, which would become real AWS tags. A tag
+            # left out or blank keeps the rules default (already a flagged gap).
+            said = {k.replace("_", "-"): v for k, v in (out.get("tags") or {}).items() if v}
+            tags = {k: said.get(k) or v for k, v in rules.tags.items()}
+            out.update(port=rules.port, env=dict(rules.env), tags=tags)
             inputs = GoldenInputs(name=app.app_id, runtime=rules.runtime, **out)
             schema.validate(inputs)
             return inputs, gaps
