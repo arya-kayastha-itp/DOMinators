@@ -1,0 +1,12 @@
+# Cutover gate thresholds (T3-C-10). No credentials here — see the .gitignore
+# exception for this exact path.
+steps: [10, 50, 100]
+observe_window_s: 20
+settle_s: 2
+min_requests: 50
+gates:
+  max_error_rate: 0.02
+  max_p95_ms: 800
+  min_target_share_ratio: 0.8
+  require_healthy_targets: true
+heartbeat_interval_s: 1

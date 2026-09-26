@@ -54,6 +54,36 @@ def emit_batch(
     return events
 
 
+def emit_batch_leveled(
+    agent: str,
+    items: Iterable[tuple[str | None, EventType | str, dict | None, EventLevel]],
+) -> list[Event]:
+    """Like emit_batch, but each item carries its own level — for a batch
+    whose events aren't all the same severity (T3-C-9's simulated wave: info
+    steps plus the occasional warn/error), so batching for scale doesn't
+    also have to flatten severity or scramble chronological order into one
+    per-level group. Additive: emit_batch's own signature is unchanged."""
+    rows = []
+    for app_id, type_, payload, level in items:
+        rows.append((_now(), agent, app_id, EventType(type_).value, level, json.dumps(payload or {})))
+
+    c = store.conn()
+    events_out: list[Event] = []
+    with store._lock:
+        c.execute("BEGIN IMMEDIATE")
+        try:
+            for row in rows:
+                cur = c.execute(
+                    "INSERT INTO events (ts, agent, app_id, type, level, payload) VALUES (?, ?, ?, ?, ?, ?)", row
+                )
+                events_out.append(_row_to_event((cur.lastrowid, *row)))
+            c.execute("COMMIT")
+        except Exception:
+            c.execute("ROLLBACK")
+            raise
+    return events_out
+
+
 def events_since(last_id: int) -> list[Event]:
     rows = store.conn().execute(
         "SELECT id, ts, agent, app_id, type, level, payload FROM events WHERE id > ? ORDER BY id", (last_id,)

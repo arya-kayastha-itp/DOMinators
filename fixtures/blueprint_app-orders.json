@@ -1,0 +1,136 @@
+{
+  "app_id": "app-orders",
+  "blueprint": "golden_app@v1",
+  "inputs": {
+    "name": "app-orders",
+    "port": 8080,
+    "instance_type": "t3.micro",
+    "env": {
+      "UPSTREAM_URL": "http://mig-edge-alb-1536629619.ap-south-1.elb.amazonaws.com/pricing/",
+      "REQUIRE_UPSTREAM": "1"
+    },
+    "tags": {
+      "owner": "unknown-team",
+      "cost-center": "unknown",
+      "data-class": "internal"
+    },
+    "runtime": "demo-server"
+  },
+  "fixes": [
+    {
+      "finding": "SG_OPEN_SSH",
+      "fix": "No port 22; SSM Session Manager"
+    },
+    {
+      "finding": "SG_OPEN_APP",
+      "fix": "Ingress from the edge ALB security group only"
+    },
+    {
+      "finding": "EBS_UNENCRYPTED",
+      "fix": "KMS-encrypted gp3 (alias/mig-ebs)"
+    },
+    {
+      "finding": "IMDSV1",
+      "fix": "http_tokens = required (IMDSv2)"
+    },
+    {
+      "finding": "OLD_AMI",
+      "fix": "Latest AL2023 AMI from the public SSM parameter"
+    },
+    {
+      "finding": "NO_VPC_SEGMENTATION",
+      "fix": "Placed in the target VPC's private-subnet tier"
+    },
+    {
+      "finding": "PUBLIC_IP",
+      "fix": "Private subnet, no public IP"
+    },
+    {
+      "finding": "MISSING_TAGS",
+      "fix": "Required tags enforced; gaps flagged"
+    },
+    {
+      "finding": "HARDCODED_IP",
+      "fix": "UPSTREAM_URL rewritten to the ALB path"
+    }
+  ],
+  "gaps": [
+    {
+      "field": "owner",
+      "note": "not found in legacy; defaulted"
+    },
+    {
+      "field": "cost-center",
+      "note": "not found in legacy; defaulted"
+    },
+    {
+      "field": "data-class",
+      "note": "not found in legacy; defaulted"
+    }
+  ],
+  "diff": {
+    "before": "# app-orders (legacy, Account A)\ninstance      t3.micro, AMI ami-05afd67c4a44cc983 (1293d old)\ningress       8080/tcp from 0.0.0.0/0\ningress       8080/tcp from 10.20.0.0/16\ningress       22/tcp from 0.0.0.0/0\nroot volume   8 GiB gp2, encrypted = false\nmetadata      IMDSv1 allowed (http_tokens = optional)\nsubnet        public, public IP assigned\nvpc           no private-subnet tier (every route table -> IGW)\ntags          missing: owner, cost-center, data-class\nenv           PRICING_URL=http://10.10.1.138:8080",
+    "after": "terraform {\n  required_version = \">= 1.6\"\n  required_providers {\n    aws = {\n      source  = \"hashicorp/aws\"\n      version = \"~> 5.0\"\n    }\n  }\n\n  # `terraform init -backend=false` (used for local validate-only runs) skips\n  # this regardless of what it says, so it's safe to always render it \u2014\n  # real applies and dry-run validates share one template either way.\n  backend \"s3\" {\n    bucket         = \"mig-tfstate-408336117553\"\n    key            = \"generated/app-orders/terraform.tfstate\"\n    region         = \"ap-south-1\"\n    dynamodb_table = \"mig-tfstate-lock\"\n  }\n}\n\nprovider \"aws\" {\n  region = \"ap-south-1\"\n}\n\nmodule \"app\" {\n  source           = \"../../infra/terraform/modules/golden_app\"\n  name             = \"app-orders\"\n  port             = 8080\n  instance_type    = \"t3.micro\"\n  runtime          = \"demo-server\"\n  env = {\n    UPSTREAM_URL = \"http://mig-edge-alb-1536629619.ap-south-1.elb.amazonaws.com/pricing/\"\n    REQUIRE_UPSTREAM = \"1\"\n  }\n  tags = {\n    \"owner\" = \"unknown-team\"\n    \"cost-center\" = \"unknown\"\n    \"data-class\" = \"internal\"\n  }\n  target_group_arn   = \"arn:aws:elasticloadbalancing:ap-south-1:408336117553:targetgroup/tg-app-orders-target/319cef1246934b13\"\n  vpc_id             = \"vpc-06b381c1e65577891\"\n  private_subnet_ids = [\"subnet-09486f771159b9ee2\", \"subnet-0e294b7c30225765f\"]\n  path_prefix        = \"/orders\"\n}\n",
+    "annotations": [
+      {
+        "finding": "SG_OPEN_SSH",
+        "before_line": 5,
+        "after_line": null,
+        "fix": "No port 22; SSM Session Manager"
+      },
+      {
+        "finding": "SG_OPEN_APP",
+        "before_line": 3,
+        "after_line": null,
+        "fix": "Ingress from the edge ALB security group only"
+      },
+      {
+        "finding": "EBS_UNENCRYPTED",
+        "before_line": 6,
+        "after_line": null,
+        "fix": "KMS-encrypted gp3 (alias/mig-ebs)"
+      },
+      {
+        "finding": "IMDSV1",
+        "before_line": 7,
+        "after_line": null,
+        "fix": "http_tokens = required (IMDSv2)"
+      },
+      {
+        "finding": "OLD_AMI",
+        "before_line": 2,
+        "after_line": 26,
+        "fix": "Latest AL2023 AMI from the public SSM parameter"
+      },
+      {
+        "finding": "NO_VPC_SEGMENTATION",
+        "before_line": 9,
+        "after_line": null,
+        "fix": "Placed in the target VPC's private-subnet tier"
+      },
+      {
+        "finding": "PUBLIC_IP",
+        "before_line": 8,
+        "after_line": null,
+        "fix": "Private subnet, no public IP"
+      },
+      {
+        "finding": "MISSING_TAGS",
+        "before_line": 10,
+        "after_line": null,
+        "fix": "Required tags enforced; gaps flagged"
+      },
+      {
+        "finding": "HARDCODED_IP",
+        "before_line": 11,
+        "after_line": null,
+        "fix": "UPSTREAM_URL rewritten to the ALB path"
+      }
+    ]
+  },
+  "tf_dir": "generated/app-orders",
+  "validate_ok": false,
+  "applied": false,
+  "outputs": null,
+  "status": "BLUEPRINTED"
+}

@@ -159,8 +159,9 @@ checks of the edge ALB._
       Gitea + Vaultwarden RED (30, `STATEFUL`); Wave 0 rule is now "every real app that
       isn't parked" → catalog → pricing → orders → juice-shop (2026-09-26). The
       fixtures/tests still use the 3 original apps (see §7)
-- [ ] Track 3: Blueprint passes `app_routes[app].runtime` into `golden_app` and
-      handles apps with a `listener_port` (no `path_prefix`)
+- [x] Track 3: Blueprint passes `app_routes[app].runtime` into `golden_app` and
+      handles apps with a `listener_port` (no `path_prefix`) — `mapper_rules.py`
+      reads both from `target_outputs.json`, never hardcoded
 - [ ] `envs/target` listener rules: `lifecycle { ignore_changes = [action] }` (or
       equivalent), otherwise the next `terraform apply` resets Cutover's weights to
       100/0 and silently undoes a migration
@@ -198,8 +199,13 @@ checks of the edge ALB._
 - [x] T2-G0-5 `aws.py` — implemented, not just signatures (see §8)
 - [x] T2-G0-6 D1 accepted (`HARDCODED_IP` on pricing; `Cloud_ENVIRONMENTS.md` §4
       updated) and D2 accepted (`MISSING_TAGS` auto-fixable, all 3 real apps GOLDEN)
-- [ ] Track 3 reviews `blueprint_app-catalog.json`, `cutover_*.json`,
-      `traffic_app-orders.json` and fixes them in their first PR
+- [x] Track 3 reviews `blueprint_app-catalog.json`, `cutover_*.json`,
+      `traffic_app-orders.json` — `blueprint_app-catalog.json` regenerated
+      from the real agent (`mapper_rules` + `render` + `diff`) against the G0
+      `AppRecord` fixture, plus new `blueprint_app-pricing.json` /
+      `blueprint_app-orders.json` the same way; `cutover_*.json` /
+      `traffic_app-orders.json` reviewed and left as-is — still a faithful,
+      schema-valid example of a `ROLLED_BACK` run
 - [ ] Re-record `fixtures/aws/` and extend `fixtures/apps.json` etc. with
       `app-juice-shop` / `app-gitea` / `app-vaultwarden` once Account A testing finishes
       (all live, but deliberately left out of the fixtures while they're being tested)
@@ -275,36 +281,108 @@ checks of the edge ALB._
 - [ ] T2-I-3 `scripts/e2e_real.sh`
 
 ### 11. Blueprint/IaC — Track 3 / A3
-- [ ] T3-B-1 `GoldenInputs` schema (no IP literals in `env`)
-- [ ] T3-B-2 Rules mapper (`UPSTREAM_URL` + `REQUIRE_UPSTREAM`, tags + gaps)
-- [ ] T3-B-3 LLM mapper via `loop.py` with fallback
-- [ ] T3-B-4 `templates/main.tf.j2` → `generated/<app>/main.tf` (wiring only from
-      `target_outputs.json`)
-- [ ] T3-B-5 Diff with ≥ 7 annotated fixes per real app
-- [ ] T3-B-6 Terraform runner (init/validate/plan/apply, plugin cache)
-- [ ] T3-B-7 Wait for target health; `PROVISIONED` / `BLUEPRINT_FAILED`
-- [ ] T3-B-8 Bad-wave variant (drop `UPSTREAM_URL`, keep `REQUIRE_UPSTREAM=1`)
-- [ ] T3-B-9 Fix & retry with `-replace` (or `user_data_replace_on_change`)
-- [ ] T3-B-10 1,000 synthetic dry runs < 30 s
-- [ ] T3-B-11 `run()` + CLI
-- [ ] `app-catalog` applied + healthy in `tg-app-catalog-target`
-- [ ] `app-pricing` applied + healthy
-- [ ] `app-orders` applied (bad variant) + healthy on `/health`
+- [x] T3-B-1 `GoldenInputs` schema (no IP literals in `env`) — `schema.py`:
+      instance-type allowlist, the 3 required tags, no `IPV4` match in any
+      `env` value (mirrors the module's own `variable` validation blocks)
+- [x] T3-B-2 Rules mapper (`UPSTREAM_URL` + `REQUIRE_UPSTREAM`, tags + gaps) —
+      `mapper_rules.py`; reproduces the CONTRACTS.md `app-orders` example
+      verbatim (`UPSTREAM_URL=http://<alb_dns_name>/pricing/`) straight off the
+      G0 fixture, wiring only from `target_outputs.json`
+- [ ] T3-B-3 LLM mapper via `loop.py` with fallback — `mapper_llm.py` has the
+      tool schemas (`set_golden_inputs`, `flag_gap`, `lookup_target_endpoint`)
+      and the retry-once/`LLM_FALLBACK` wiring, same status as Track 2's
+      borderline-tiering hook: untested until Track 4's `llm.py` (T4-L-1) exists.
+      `_llm_available()` is always false today, so `mapper_rules` is what
+      actually runs
+- [x] T3-B-4 `templates/main.tf.j2` → `generated/<app>/main.tf` (wiring only from
+      `target_outputs.json`) — one template for real applies and local
+      dry-run validates alike (`-backend=false` skips the backend block
+      regardless of whether it's in the file)
+- [x] T3-B-5 Diff with ≥ 7 annotated fixes per real app — `diff.py`; 7 for
+      `app-catalog`, 9 each for `app-pricing`/`app-orders` (tested)
+- [x] T3-B-6 Terraform runner (init/validate/plan/apply, plugin cache) —
+      `terraform.py`; streams `TOOL_CALL` events, shared `TF_PLUGIN_CACHE_DIR`.
+      Code path unit-tested with a faked `terraform` module (no `terraform`
+      binary on this dev machine to run it against for real — see §6)
+- [x] T3-B-7 Wait for target health; `PROVISIONED` / `BLUEPRINT_FAILED` — polls
+      `describe_target_health` (timeout 180s), reads `instance_ids` back off
+      the health descriptions. Code path tested via mocks, not live AWS
+- [x] T3-B-8 Bad-wave variant (drop `UPSTREAM_URL`, keep `REQUIRE_UPSTREAM=1`) —
+      dropped before `schema.validate` (still valid HCL, broken at runtime);
+      tested
+- [x] T3-B-9 Fix & retry with `-replace` (or `user_data_replace_on_change`) —
+      `terraform.apply_replace(... "module.app.aws_instance.this")`; code
+      path tested via mocks
+- [x] T3-B-10 1,000 synthetic dry runs < 30 s — **5.3s** measured (1,000
+      apps: map → validate → render(no write) → diff, zero render errors).
+      Needed two fixes to get under budget: Jinja's `auto_reload` was
+      `stat()`-ing the template file every render (this machine's slow
+      filesystem again, see §8) and per-app `store.save_blueprint` /
+      `set_status` calls were 2,000 individual transactions — switched to one
+      `save_blueprints()` batch (new, additive, in `store.py`) plus one
+      `upsert_apps()` for the status change, same trick Discovery uses
+- [x] T3-B-11 `run()` + CLI — `python -m agents.blueprint --app app-catalog
+      [--apply]`; statuses `BLUEPRINTED` → `PROVISIONED` / `FAILED`
+- [ ] `app-catalog` applied + healthy in `tg-app-catalog-target` — needs a real
+      `terraform` binary + Account B credentials, neither available on this
+      dev machine; blocked on T1-2 either way
+- [ ] `app-pricing` applied + healthy — same blocker
+- [ ] `app-orders` applied (bad variant) + healthy on `/health` — same blocker
 
 ### 12. Cutover — Track 3 / A4
-- [ ] T3-C-1 Local fake ALB harness
-- [ ] T3-C-2 Traffic generator (~20 req/s/app → `traffic` table)
-- [ ] T3-C-3 `weights.py` against the live ALB rules
-- [ ] T3-C-4 Gate evaluator + tests
-- [ ] T3-C-5 Controller (precheck, 10/50/100, gates)
-- [ ] T3-C-6 Rollback < 2 s in `finally` + signal handlers
-- [ ] T3-C-7 Heartbeat for the orchestrator watchdog
-- [ ] T3-C-8 LLM explainer (template fallback)
-- [ ] T3-C-9 Synthetic wave simulation (~3% seeded rollbacks)
-- [ ] T3-C-10 `run()` + CLI + `config.yaml`
-- [ ] Clean real cutover of `app-catalog` in 60–90 s
-- [ ] Bad wave on `app-orders` rolls back automatically — verified 3×
-- [ ] Soft kill **and** hard kill mid-cutover leave weights at 100/0
+- [x] T3-C-1 Local fake ALB harness — `fake_alb.py`: two real `app/server.py`
+      processes (legacy/target, incl. the bad-target variant) behind a
+      weighted reverse proxy, plus `FakeElbClient` (`modify_rule` /
+      `describe_rules` / `describe_target_health`) — same shape `weights.py`
+      expects from boto3, so nothing else branches on fake-vs-real
+- [x] T3-C-2 Traffic generator (~20 req/s/app → `traffic` table) — `traffic.py`;
+      thread-based (not asyncio — start/stop needed to work from any caller's
+      thread) rather than the literal asyncio sketch in `agents/README.md`,
+      same ~20 req/s/250ms-batch behaviour
+- [x] T3-C-3 `weights.py` against the live ALB rules — implemented against the
+      real `elbv2` call shape; verified against the fake ALB (real ALB needs
+      T1-1, not available here)
+- [x] T3-C-4 Gate evaluator + tests — `gates.py`, pure, unit-tested per
+      threshold (error rate, p95, target-share ratio, healthy targets, min
+      requests, settle-window exclusion)
+- [x] T3-C-5 Controller (precheck, 10/50/100, gates) — `controller.py`;
+      precheck/loop/rollback all verified against the fake ALB: clean
+      migration, bad-wave rollback (rolls back within one observe window),
+      and precheck ABORT with weights untouched
+- [x] T3-C-6 Rollback < 2 s in `finally` + signal handlers — one `modify_rule`
+      call, idempotent; verified a mid-loop exception still resets weights to
+      100/0 via the `finally`-guarded contextmanager (SIGINT/SIGTERM handlers
+      registered when on the main thread; `atexit` as a second net). A literal
+      OS-level kill (`kill -9` / `taskkill /F`) was **not** exercised in this
+      session — that and the hard-kill/watchdog path still want a real run
+- [x] T3-C-7 Heartbeat for the orchestrator watchdog — writes
+      `cutover_heartbeat:<app_id>` every 1s while cutting over; the watchdog
+      that resets stale weights is Track 4's orchestrator (T4-O-9), not built here
+- [ ] T3-C-8 LLM explainer (template fallback) — `explainer.py`; template path
+      implemented and tested (matches the fixture's tone: *"All gates passed
+      at 10%, 50%, 100%; traffic followed the weights."*), same
+      untested-until-`llm.py` status as the other LLM hooks
+- [x] T3-C-9 Synthetic wave simulation (~3% seeded rollbacks) — `simulate.py`;
+      deterministic per `app_id` (seeded PRNG), 1,000-app wave in **1.4s**
+      after batching events (`emit_batch_leveled`, new additive function —
+      preserves per-event severity and cross-app chronological order that a
+      naive single-level `emit_batch` would have lost) and cutover rows
+      (`save_cutovers`, new additive function)
+- [x] T3-C-10 `run()` + CLI + `config.yaml` — `python -m agents.cutover --app
+      app-catalog`; statuses `CUTTING_OVER` → `MIGRATED` / `ROLLED_BACK`.
+      `.gitignore`'s blanket `config.yaml` credential pattern needed a
+      `!agents/cutover/config.yaml` exception (same style as the existing
+      `envs/target` one) — it's gate thresholds, not secrets
+- [ ] Clean real cutover of `app-catalog` in 60–90 s — verified against the
+      **fake** ALB (weights follow correctly, traffic share tracks the
+      weight); the real ALB needs T1-1 and wasn't available here
+- [ ] Bad wave on `app-orders` rolls back automatically — verified 3× against
+      the fake ALB's bad-target variant (rolls back at 10% every time, weights
+      restored); not yet re-run against the real ALB/Account B
+- [ ] Soft kill **and** hard kill mid-cutover leave weights at 100/0 — soft-kill
+      equivalent (an exception mid-loop) verified; a literal process kill on
+      the demo host OS is still open, per Track 3's own note that signal
+      handling differs on Windows
 
 ### 13. Orchestrator (backend) — Track 4 / C1
 - [ ] T4-O-1 FastAPI app + `/healthz`
@@ -349,6 +427,8 @@ checks of the edge ALB._
 
 **Bottom line:** the cloud is done and verified live. Both accounts, peering,
 cross-account IAM and the ALB are working, and the legacy chain is served through
-the ALB. Everything left is the agents, the orchestrator and the dashboard (§7–15),
-plus a short cloud carry-over (§6). T1-1 and T1-2 must land before Track 3 can run
-for real.
+the ALB. Discovery, Planning, Blueprint and Cutover (§7–12) are all built and
+pass on fixtures / a local fake ALB — `pytest` is 94 tests green. Everything
+left is real-AWS verification for Blueprint/Cutover (needs T1-1, T1-2, and a
+machine with a `terraform` binary), the orchestrator, and the dashboard
+(§13–15), plus a short cloud carry-over (§6).
