@@ -30,18 +30,18 @@
         "Associations": [
           {
             "Main": false,
-            "RouteTableAssociationId": "rtbassoc-0020d0c7b40faae2b",
+            "RouteTableAssociationId": "rtbassoc-0bf4063efbd75a714",
             "RouteTableId": "rtb-0f2a958079f7fffb3",
-            "SubnetId": "subnet-073d58f76a88aaa69",
+            "SubnetId": "subnet-0853e5e88286f0942",
             "AssociationState": {
               "State": "associated"
             }
           },
           {
             "Main": false,
-            "RouteTableAssociationId": "rtbassoc-0bf4063efbd75a714",
+            "RouteTableAssociationId": "rtbassoc-0020d0c7b40faae2b",
             "RouteTableId": "rtb-0f2a958079f7fffb3",
-            "SubnetId": "subnet-0853e5e88286f0942",
+            "SubnetId": "subnet-073d58f76a88aaa69",
             "AssociationState": {
               "State": "associated"
             }

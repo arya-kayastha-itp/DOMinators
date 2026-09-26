@@ -190,7 +190,7 @@ reset() -> None
 agents.discovery.run(scope: Literal["real", "synthetic", "all"] = "all") -> DiscoverySummary
 agents.planning.run(capacity_per_wave=40, waves_per_week=3, start_date: date | None = None) -> WavePlan
 agents.blueprint.run(app_id: str, apply: bool = False) -> BlueprintResult     # reads bad_wave flag from store
-agents.cutover.run(app_id: str, steps=(10, 50, 100), observe_window_s=20) -> CutoverRun
+agents.cutover.run(app_id: str, steps=(10, 50, 100), observe_window_s=None) -> CutoverRun  # None = agents/cutover/config.yaml (35 s; was 20 — too short for the real ALB's ~12 s weight propagation)
 ```
 
 Every entry point is idempotent, emits its own events, and works with `LLM_BACKEND=off`.

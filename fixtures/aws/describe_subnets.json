@@ -84,7 +84,7 @@
         "State": "available",
         "VpcId": "vpc-0bc12dd6664275ce7",
         "CidrBlock": "10.10.1.0/24",
-        "AvailableIpAddressCount": 246,
+        "AvailableIpAddressCount": 245,
         "AvailabilityZone": "ap-south-1a",
         "DefaultForAz": false,
         "MapPublicIpOnLaunch": true

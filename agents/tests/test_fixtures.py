@@ -18,11 +18,15 @@ def test_expected_findings_after_d1_d2():
     assert by_id["app-catalog"] == BASELINE
     assert by_id["app-pricing"] == BASELINE | {"MISSING_TAGS", "HARDCODED_IP"}  # D1: pricing's CATALOG_URL has an IP
     assert by_id["app-orders"] == BASELINE | {"MISSING_TAGS", "HARDCODED_IP"}
+    assert by_id["app-juice-shop"] == BASELINE
+    assert by_id["app-gitea"] == BASELINE | {"STATEFUL"}
+    assert by_id["app-vaultwarden"] == BASELINE | {"STATEFUL"}
 
 
-def test_all_three_real_apps_golden_d2():
+def test_real_app_tiers_d2():
     assert {t.app_id: t.tier for t in fixtures.tiers()} == {
         "app-catalog": Tier.GOLDEN, "app-pricing": Tier.GOLDEN, "app-orders": Tier.GOLDEN,
+        "app-juice-shop": Tier.GOLDEN, "app-gitea": Tier.RED, "app-vaultwarden": Tier.RED,
     }
 
 
@@ -42,8 +46,10 @@ def test_edges_are_consumer_to_provider_with_all_three_signals():
     }
 
 
-def test_wave_zero_is_providers_first():
-    assert fixtures.plan().waves[0].app_ids == ["app-catalog", "app-pricing", "app-orders"]
+def test_wave_zero_is_providers_first_and_stateful_apps_are_parked():
+    plan = fixtures.plan()
+    assert plan.waves[0].app_ids == ["app-catalog", "app-pricing", "app-orders", "app-juice-shop"]
+    assert plan.parked == ["app-gitea", "app-vaultwarden"]
 
 
 def test_summary_counts_match_apps():

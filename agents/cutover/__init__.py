@@ -55,11 +55,12 @@ def _default_elbv2():
 def run(
     app_id: str,
     steps: Sequence[int] = (10, 50, 100),
-    observe_window_s: int = 20,
+    observe_window_s: int | None = None,
     *,
     elbv2=None,
     assert_managed=None,
 ) -> CutoverRun:
+    """`observe_window_s` defaults to config.yaml's value."""
     apps = {a.app_id: a for a in store.get_apps()}
     app = apps.get(app_id)
     if app is None:
@@ -68,7 +69,11 @@ def run(
 
     cfg_raw = load_config()
     gate_cfg = _gate_config(cfg_raw)
-    settle_s = cfg_raw.get("settle_s", 2)
+    if observe_window_s is None:
+        observe_window_s = cfg_raw.get("observe_window_s", 20)
+    # Never let the settle period swallow the whole window (short windows in
+    # tests / the fake ALB, which has no propagation delay).
+    settle_s = min(cfg_raw.get("settle_s", 2), observe_window_s / 2)
 
     previous_status = app.status
     store.set_status(app_id, AppStatus.CUTTING_OVER)

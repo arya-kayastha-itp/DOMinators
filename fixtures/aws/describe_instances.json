@@ -557,6 +557,587 @@
             "PublicIpAddress": "13.127.156.48"
           }
         ]
+      },
+      {
+        "ReservationId": "r-0d8c85e20285c9fbb",
+        "OwnerId": "533266974611",
+        "RequesterId": "746689304693",
+        "Groups": [],
+        "Instances": [
+          {
+            "Architecture": "x86_64",
+            "BlockDeviceMappings": [
+              {
+                "DeviceName": "/dev/xvda",
+                "Ebs": {
+                  "AttachTime": "2026-09-26T14:00:38+00:00",
+                  "DeleteOnTermination": true,
+                  "Status": "attached",
+                  "VolumeId": "vol-09452ae25b6249acf",
+                  "EbsCardIndex": 0
+                }
+              }
+            ],
+            "ClientToken": "0a6add40-4f37-5fc7-c2a6-68887d91cb24",
+            "EbsOptimized": false,
+            "EnaSupport": true,
+            "Hypervisor": "xen",
+            "NetworkInterfaces": [
+              {
+                "Association": {
+                  "IpOwnerId": "amazon",
+                  "PublicDnsName": "ec2-65-2-166-130.ap-south-1.compute.amazonaws.com",
+                  "PublicIp": "65.2.166.130"
+                },
+                "Attachment": {
+                  "AttachTime": "2026-09-26T14:00:38+00:00",
+                  "AttachmentId": "eni-attach-009bd328e2ffa07c1",
+                  "DeleteOnTermination": true,
+                  "DeviceIndex": 0,
+                  "Status": "attached",
+                  "NetworkCardIndex": 0
+                },
+                "Description": "",
+                "Groups": [
+                  {
+                    "GroupId": "sg-08931c8c0154c950e",
+                    "GroupName": "mig-legacy-all-GiteaSG-aEvbzODpYLta"
+                  }
+                ],
+                "Ipv6Addresses": [],
+                "MacAddress": "02:ff:e9:98:f2:21",
+                "NetworkInterfaceId": "eni-0b0b9220f15b01c43",
+                "OwnerId": "533266974611",
+                "PrivateDnsName": "ip-10-10-1-115.ap-south-1.compute.internal",
+                "PrivateIpAddress": "10.10.1.115",
+                "PrivateIpAddresses": [
+                  {
+                    "Association": {
+                      "IpOwnerId": "amazon",
+                      "PublicDnsName": "ec2-65-2-166-130.ap-south-1.compute.amazonaws.com",
+                      "PublicIp": "65.2.166.130"
+                    },
+                    "Primary": true,
+                    "PrivateDnsName": "ip-10-10-1-115.ap-south-1.compute.internal",
+                    "PrivateIpAddress": "10.10.1.115"
+                  }
+                ],
+                "SourceDestCheck": true,
+                "Status": "in-use",
+                "SubnetId": "subnet-0853e5e88286f0942",
+                "VpcId": "vpc-0bc12dd6664275ce7",
+                "InterfaceType": "interface",
+                "Operator": {
+                  "Managed": false
+                }
+              }
+            ],
+            "RootDeviceName": "/dev/xvda",
+            "RootDeviceType": "ebs",
+            "SecurityGroups": [
+              {
+                "GroupId": "sg-08931c8c0154c950e",
+                "GroupName": "mig-legacy-all-GiteaSG-aEvbzODpYLta"
+              }
+            ],
+            "SourceDestCheck": true,
+            "Tags": [
+              {
+                "Key": "aws:cloudformation:stack-name",
+                "Value": "mig-legacy-all"
+              },
+              {
+                "Key": "owner",
+                "Value": "team-x"
+              },
+              {
+                "Key": "aws:cloudformation:logical-id",
+                "Value": "GiteaInstance"
+              },
+              {
+                "Key": "cost-center",
+                "Value": "cc-1"
+              },
+              {
+                "Key": "findings",
+                "Value": "SG_OPEN_SSH,SG_OPEN_APP,EBS_UNENCRYPTED,IMDSV1,OLD_AMI,NO_VPC_SEGMENTATION,PUBLIC_IP,STATEFUL"
+              },
+              {
+                "Key": "data-class",
+                "Value": "internal"
+              },
+              {
+                "Key": "aws:cloudformation:stack-id",
+                "Value": "arn:aws:cloudformation:ap-south-1:533266974611:stack/mig-legacy-all/8b2b44f0-b935-11f1-8e4f-02809389843b"
+              },
+              {
+                "Key": "stateful",
+                "Value": "true"
+              },
+              {
+                "Key": "Name",
+                "Value": "app-gitea"
+              }
+            ],
+            "VirtualizationType": "hvm",
+            "CpuOptions": {
+              "CoreCount": 1,
+              "ThreadsPerCore": 2
+            },
+            "CapacityReservationSpecification": {
+              "CapacityReservationPreference": "open"
+            },
+            "HibernationOptions": {
+              "Configured": false
+            },
+            "MetadataOptions": {
+              "State": "applied",
+              "HttpTokens": "optional",
+              "HttpPutResponseHopLimit": 2,
+              "HttpEndpoint": "enabled",
+              "HttpProtocolIpv6": "disabled",
+              "InstanceMetadataTags": "disabled"
+            },
+            "EnclaveOptions": {
+              "Enabled": false
+            },
+            "BootMode": "uefi-preferred",
+            "PlatformDetails": "Linux/UNIX",
+            "UsageOperation": "RunInstances",
+            "UsageOperationUpdateTime": "2026-09-26T14:00:38+00:00",
+            "PrivateDnsNameOptions": {
+              "HostnameType": "ip-name",
+              "EnableResourceNameDnsARecord": false,
+              "EnableResourceNameDnsAAAARecord": false
+            },
+            "MaintenanceOptions": {
+              "AutoRecovery": "default",
+              "RebootMigration": "default"
+            },
+            "CurrentInstanceBootMode": "uefi",
+            "NetworkPerformanceOptions": {
+              "BandwidthWeighting": "default"
+            },
+            "Operator": {
+              "Managed": false,
+              "HiddenByDefault": false
+            },
+            "SecondaryInterfaces": [],
+            "InstanceId": "i-05ecad8a65418671a",
+            "ImageId": "ami-05afd67c4a44cc983",
+            "State": {
+              "Code": 16,
+              "Name": "running"
+            },
+            "PrivateDnsName": "ip-10-10-1-115.ap-south-1.compute.internal",
+            "PublicDnsName": "ec2-65-2-166-130.ap-south-1.compute.amazonaws.com",
+            "StateTransitionReason": "",
+            "KeyName": "mig-legacy-key",
+            "AmiLaunchIndex": 0,
+            "ProductCodes": [],
+            "InstanceType": "t3.micro",
+            "LaunchTime": "2026-09-26T14:19:41+00:00",
+            "Placement": {
+              "AvailabilityZoneId": "aps1-az1",
+              "GroupName": "",
+              "Tenancy": "default",
+              "AvailabilityZone": "ap-south-1a"
+            },
+            "Monitoring": {
+              "State": "disabled"
+            },
+            "SubnetId": "subnet-0853e5e88286f0942",
+            "VpcId": "vpc-0bc12dd6664275ce7",
+            "PrivateIpAddress": "10.10.1.115",
+            "PublicIpAddress": "65.2.166.130"
+          }
+        ]
+      },
+      {
+        "ReservationId": "r-02546c0b287c7b08d",
+        "OwnerId": "533266974611",
+        "RequesterId": "746689304693",
+        "Groups": [],
+        "Instances": [
+          {
+            "Architecture": "x86_64",
+            "BlockDeviceMappings": [
+              {
+                "DeviceName": "/dev/xvda",
+                "Ebs": {
+                  "AttachTime": "2026-09-26T15:13:34+00:00",
+                  "DeleteOnTermination": true,
+                  "Status": "attached",
+                  "VolumeId": "vol-0c2cfdff2d23bd221",
+                  "EbsCardIndex": 0
+                }
+              }
+            ],
+            "ClientToken": "5bd1c72a-d252-f827-a5db-5f57e528c04f",
+            "EbsOptimized": false,
+            "EnaSupport": true,
+            "Hypervisor": "xen",
+            "NetworkInterfaces": [
+              {
+                "Association": {
+                  "IpOwnerId": "amazon",
+                  "PublicDnsName": "ec2-13-206-121-208.ap-south-1.compute.amazonaws.com",
+                  "PublicIp": "13.206.121.208"
+                },
+                "Attachment": {
+                  "AttachTime": "2026-09-26T15:13:33+00:00",
+                  "AttachmentId": "eni-attach-07fe632c655b8c234",
+                  "DeleteOnTermination": true,
+                  "DeviceIndex": 0,
+                  "Status": "attached",
+                  "NetworkCardIndex": 0
+                },
+                "Description": "",
+                "Groups": [
+                  {
+                    "GroupId": "sg-06715ce00b63aedaf",
+                    "GroupName": "mig-legacy-all-VaultwardenSG-qBUxFD5YGz58"
+                  }
+                ],
+                "Ipv6Addresses": [],
+                "MacAddress": "02:ff:d3:ec:a5:d1",
+                "NetworkInterfaceId": "eni-0f4542a43ec1cae8b",
+                "OwnerId": "533266974611",
+                "PrivateDnsName": "ip-10-10-1-169.ap-south-1.compute.internal",
+                "PrivateIpAddress": "10.10.1.169",
+                "PrivateIpAddresses": [
+                  {
+                    "Association": {
+                      "IpOwnerId": "amazon",
+                      "PublicDnsName": "ec2-13-206-121-208.ap-south-1.compute.amazonaws.com",
+                      "PublicIp": "13.206.121.208"
+                    },
+                    "Primary": true,
+                    "PrivateDnsName": "ip-10-10-1-169.ap-south-1.compute.internal",
+                    "PrivateIpAddress": "10.10.1.169"
+                  }
+                ],
+                "SourceDestCheck": true,
+                "Status": "in-use",
+                "SubnetId": "subnet-0853e5e88286f0942",
+                "VpcId": "vpc-0bc12dd6664275ce7",
+                "InterfaceType": "interface",
+                "Operator": {
+                  "Managed": false
+                }
+              }
+            ],
+            "RootDeviceName": "/dev/xvda",
+            "RootDeviceType": "ebs",
+            "SecurityGroups": [
+              {
+                "GroupId": "sg-06715ce00b63aedaf",
+                "GroupName": "mig-legacy-all-VaultwardenSG-qBUxFD5YGz58"
+              }
+            ],
+            "SourceDestCheck": true,
+            "Tags": [
+              {
+                "Key": "owner",
+                "Value": "team-x"
+              },
+              {
+                "Key": "aws:cloudformation:stack-name",
+                "Value": "mig-legacy-all"
+              },
+              {
+                "Key": "cost-center",
+                "Value": "cc-1"
+              },
+              {
+                "Key": "stateful",
+                "Value": "true"
+              },
+              {
+                "Key": "data-class",
+                "Value": "internal"
+              },
+              {
+                "Key": "findings",
+                "Value": "SG_OPEN_SSH,SG_OPEN_APP,EBS_UNENCRYPTED,IMDSV1,OLD_AMI,NO_VPC_SEGMENTATION,PUBLIC_IP,STATEFUL"
+              },
+              {
+                "Key": "aws:cloudformation:stack-id",
+                "Value": "arn:aws:cloudformation:ap-south-1:533266974611:stack/mig-legacy-all/8b2b44f0-b935-11f1-8e4f-02809389843b"
+              },
+              {
+                "Key": "Name",
+                "Value": "app-vaultwarden"
+              },
+              {
+                "Key": "aws:cloudformation:logical-id",
+                "Value": "VaultwardenInstance"
+              }
+            ],
+            "VirtualizationType": "hvm",
+            "CpuOptions": {
+              "CoreCount": 1,
+              "ThreadsPerCore": 2
+            },
+            "CapacityReservationSpecification": {
+              "CapacityReservationPreference": "open"
+            },
+            "HibernationOptions": {
+              "Configured": false
+            },
+            "MetadataOptions": {
+              "State": "applied",
+              "HttpTokens": "optional",
+              "HttpPutResponseHopLimit": 2,
+              "HttpEndpoint": "enabled",
+              "HttpProtocolIpv6": "disabled",
+              "InstanceMetadataTags": "disabled"
+            },
+            "EnclaveOptions": {
+              "Enabled": false
+            },
+            "BootMode": "uefi-preferred",
+            "PlatformDetails": "Linux/UNIX",
+            "UsageOperation": "RunInstances",
+            "UsageOperationUpdateTime": "2026-09-26T15:13:33+00:00",
+            "PrivateDnsNameOptions": {
+              "HostnameType": "ip-name",
+              "EnableResourceNameDnsARecord": false,
+              "EnableResourceNameDnsAAAARecord": false
+            },
+            "MaintenanceOptions": {
+              "AutoRecovery": "default",
+              "RebootMigration": "default"
+            },
+            "CurrentInstanceBootMode": "uefi",
+            "NetworkPerformanceOptions": {
+              "BandwidthWeighting": "default"
+            },
+            "Operator": {
+              "Managed": false,
+              "HiddenByDefault": false
+            },
+            "SecondaryInterfaces": [],
+            "InstanceId": "i-0fc825d85d3ecf824",
+            "ImageId": "ami-05afd67c4a44cc983",
+            "State": {
+              "Code": 16,
+              "Name": "running"
+            },
+            "PrivateDnsName": "ip-10-10-1-169.ap-south-1.compute.internal",
+            "PublicDnsName": "ec2-13-206-121-208.ap-south-1.compute.amazonaws.com",
+            "StateTransitionReason": "",
+            "KeyName": "mig-legacy-key",
+            "AmiLaunchIndex": 0,
+            "ProductCodes": [],
+            "InstanceType": "t3.micro",
+            "LaunchTime": "2026-09-26T15:13:33+00:00",
+            "Placement": {
+              "AvailabilityZoneId": "aps1-az1",
+              "GroupName": "",
+              "Tenancy": "default",
+              "AvailabilityZone": "ap-south-1a"
+            },
+            "Monitoring": {
+              "State": "disabled"
+            },
+            "SubnetId": "subnet-0853e5e88286f0942",
+            "VpcId": "vpc-0bc12dd6664275ce7",
+            "PrivateIpAddress": "10.10.1.169",
+            "PublicIpAddress": "13.206.121.208"
+          }
+        ]
+      },
+      {
+        "ReservationId": "r-06ce6890209884f54",
+        "OwnerId": "533266974611",
+        "RequesterId": "746689304693",
+        "Groups": [],
+        "Instances": [
+          {
+            "Architecture": "x86_64",
+            "BlockDeviceMappings": [
+              {
+                "DeviceName": "/dev/xvda",
+                "Ebs": {
+                  "AttachTime": "2026-09-26T14:00:39+00:00",
+                  "DeleteOnTermination": true,
+                  "Status": "attached",
+                  "VolumeId": "vol-0a32d318edefbc591",
+                  "EbsCardIndex": 0
+                }
+              }
+            ],
+            "ClientToken": "00ffc15e-b297-2cdb-315f-c3da26458c71",
+            "EbsOptimized": false,
+            "EnaSupport": true,
+            "Hypervisor": "xen",
+            "NetworkInterfaces": [
+              {
+                "Association": {
+                  "IpOwnerId": "amazon",
+                  "PublicDnsName": "ec2-3-110-190-49.ap-south-1.compute.amazonaws.com",
+                  "PublicIp": "3.110.190.49"
+                },
+                "Attachment": {
+                  "AttachTime": "2026-09-26T14:00:39+00:00",
+                  "AttachmentId": "eni-attach-0ccee2b581355a41d",
+                  "DeleteOnTermination": true,
+                  "DeviceIndex": 0,
+                  "Status": "attached",
+                  "NetworkCardIndex": 0
+                },
+                "Description": "",
+                "Groups": [
+                  {
+                    "GroupId": "sg-03d7ae75484d6556c",
+                    "GroupName": "mig-legacy-all-JuiceShopSG-2GxVJ9iDZH4r"
+                  }
+                ],
+                "Ipv6Addresses": [],
+                "MacAddress": "02:ff:fa:c6:46:e9",
+                "NetworkInterfaceId": "eni-085a347297baf5f1d",
+                "OwnerId": "533266974611",
+                "PrivateDnsName": "ip-10-10-1-210.ap-south-1.compute.internal",
+                "PrivateIpAddress": "10.10.1.210",
+                "PrivateIpAddresses": [
+                  {
+                    "Association": {
+                      "IpOwnerId": "amazon",
+                      "PublicDnsName": "ec2-3-110-190-49.ap-south-1.compute.amazonaws.com",
+                      "PublicIp": "3.110.190.49"
+                    },
+                    "Primary": true,
+                    "PrivateDnsName": "ip-10-10-1-210.ap-south-1.compute.internal",
+                    "PrivateIpAddress": "10.10.1.210"
+                  }
+                ],
+                "SourceDestCheck": true,
+                "Status": "in-use",
+                "SubnetId": "subnet-0853e5e88286f0942",
+                "VpcId": "vpc-0bc12dd6664275ce7",
+                "InterfaceType": "interface",
+                "Operator": {
+                  "Managed": false
+                }
+              }
+            ],
+            "RootDeviceName": "/dev/xvda",
+            "RootDeviceType": "ebs",
+            "SecurityGroups": [
+              {
+                "GroupId": "sg-03d7ae75484d6556c",
+                "GroupName": "mig-legacy-all-JuiceShopSG-2GxVJ9iDZH4r"
+              }
+            ],
+            "SourceDestCheck": true,
+            "Tags": [
+              {
+                "Key": "aws:cloudformation:stack-name",
+                "Value": "mig-legacy-all"
+              },
+              {
+                "Key": "owner",
+                "Value": "team-x"
+              },
+              {
+                "Key": "aws:cloudformation:logical-id",
+                "Value": "JuiceShopInstance"
+              },
+              {
+                "Key": "cost-center",
+                "Value": "cc-1"
+              },
+              {
+                "Key": "findings",
+                "Value": "SG_OPEN_SSH,SG_OPEN_APP,EBS_UNENCRYPTED,IMDSV1,OLD_AMI,NO_VPC_SEGMENTATION,PUBLIC_IP"
+              },
+              {
+                "Key": "data-class",
+                "Value": "internal"
+              },
+              {
+                "Key": "Name",
+                "Value": "app-juice-shop"
+              },
+              {
+                "Key": "aws:cloudformation:stack-id",
+                "Value": "arn:aws:cloudformation:ap-south-1:533266974611:stack/mig-legacy-all/8b2b44f0-b935-11f1-8e4f-02809389843b"
+              }
+            ],
+            "VirtualizationType": "hvm",
+            "CpuOptions": {
+              "CoreCount": 1,
+              "ThreadsPerCore": 2
+            },
+            "CapacityReservationSpecification": {
+              "CapacityReservationPreference": "open"
+            },
+            "HibernationOptions": {
+              "Configured": false
+            },
+            "MetadataOptions": {
+              "State": "applied",
+              "HttpTokens": "optional",
+              "HttpPutResponseHopLimit": 2,
+              "HttpEndpoint": "enabled",
+              "HttpProtocolIpv6": "disabled",
+              "InstanceMetadataTags": "disabled"
+            },
+            "EnclaveOptions": {
+              "Enabled": false
+            },
+            "BootMode": "uefi-preferred",
+            "PlatformDetails": "Linux/UNIX",
+            "UsageOperation": "RunInstances",
+            "UsageOperationUpdateTime": "2026-09-26T14:00:39+00:00",
+            "PrivateDnsNameOptions": {
+              "HostnameType": "ip-name",
+              "EnableResourceNameDnsARecord": false,
+              "EnableResourceNameDnsAAAARecord": false
+            },
+            "MaintenanceOptions": {
+              "AutoRecovery": "default",
+              "RebootMigration": "default"
+            },
+            "CurrentInstanceBootMode": "uefi",
+            "NetworkPerformanceOptions": {
+              "BandwidthWeighting": "default"
+            },
+            "Operator": {
+              "Managed": false,
+              "HiddenByDefault": false
+            },
+            "SecondaryInterfaces": [],
+            "InstanceId": "i-041086d6afa118454",
+            "ImageId": "ami-05afd67c4a44cc983",
+            "State": {
+              "Code": 16,
+              "Name": "running"
+            },
+            "PrivateDnsName": "ip-10-10-1-210.ap-south-1.compute.internal",
+            "PublicDnsName": "ec2-3-110-190-49.ap-south-1.compute.amazonaws.com",
+            "StateTransitionReason": "",
+            "KeyName": "mig-legacy-key",
+            "AmiLaunchIndex": 0,
+            "ProductCodes": [],
+            "InstanceType": "t3.micro",
+            "LaunchTime": "2026-09-26T14:19:43+00:00",
+            "Placement": {
+              "AvailabilityZoneId": "aps1-az1",
+              "GroupName": "",
+              "Tenancy": "default",
+              "AvailabilityZone": "ap-south-1a"
+            },
+            "Monitoring": {
+              "State": "disabled"
+            },
+            "SubnetId": "subnet-0853e5e88286f0942",
+            "VpcId": "vpc-0bc12dd6664275ce7",
+            "PrivateIpAddress": "10.10.1.210",
+            "PublicIpAddress": "3.110.190.49"
+          }
+        ]
       }
     ]
   }

@@ -10,6 +10,96 @@
           "Managed": false,
           "HiddenByDefault": false
         },
+        "VolumeArn": "arn:aws:ec2:ap-south-1:533266974611:volume/vol-09452ae25b6249acf",
+        "OwnerId": "533266974611",
+        "VolumeId": "vol-09452ae25b6249acf",
+        "Size": 8,
+        "SnapshotId": "snap-0fb864c4aa404b713",
+        "AvailabilityZone": "ap-south-1a",
+        "State": "in-use",
+        "CreateTime": "2026-09-26T14:00:38.768000+00:00",
+        "Attachments": [
+          {
+            "DeleteOnTermination": true,
+            "EbsCardIndex": 0,
+            "VolumeId": "vol-09452ae25b6249acf",
+            "InstanceId": "i-05ecad8a65418671a",
+            "Device": "/dev/xvda",
+            "State": "attached",
+            "AttachTime": "2026-09-26T14:00:38+00:00"
+          }
+        ],
+        "Encrypted": false
+      },
+      {
+        "AvailabilityZoneId": "aps1-az1",
+        "Iops": 100,
+        "VolumeType": "gp2",
+        "MultiAttachEnabled": false,
+        "Operator": {
+          "Managed": false,
+          "HiddenByDefault": false
+        },
+        "VolumeArn": "arn:aws:ec2:ap-south-1:533266974611:volume/vol-0a32d318edefbc591",
+        "OwnerId": "533266974611",
+        "VolumeId": "vol-0a32d318edefbc591",
+        "Size": 8,
+        "SnapshotId": "snap-0fb864c4aa404b713",
+        "AvailabilityZone": "ap-south-1a",
+        "State": "in-use",
+        "CreateTime": "2026-09-26T14:00:40.035000+00:00",
+        "Attachments": [
+          {
+            "DeleteOnTermination": true,
+            "EbsCardIndex": 0,
+            "VolumeId": "vol-0a32d318edefbc591",
+            "InstanceId": "i-041086d6afa118454",
+            "Device": "/dev/xvda",
+            "State": "attached",
+            "AttachTime": "2026-09-26T14:00:39+00:00"
+          }
+        ],
+        "Encrypted": false
+      },
+      {
+        "AvailabilityZoneId": "aps1-az1",
+        "Iops": 100,
+        "VolumeType": "gp2",
+        "MultiAttachEnabled": false,
+        "Operator": {
+          "Managed": false,
+          "HiddenByDefault": false
+        },
+        "VolumeArn": "arn:aws:ec2:ap-south-1:533266974611:volume/vol-0c2cfdff2d23bd221",
+        "OwnerId": "533266974611",
+        "VolumeId": "vol-0c2cfdff2d23bd221",
+        "Size": 8,
+        "SnapshotId": "snap-0fb864c4aa404b713",
+        "AvailabilityZone": "ap-south-1a",
+        "State": "in-use",
+        "CreateTime": "2026-09-26T15:13:34.723000+00:00",
+        "Attachments": [
+          {
+            "DeleteOnTermination": true,
+            "EbsCardIndex": 0,
+            "VolumeId": "vol-0c2cfdff2d23bd221",
+            "InstanceId": "i-0fc825d85d3ecf824",
+            "Device": "/dev/xvda",
+            "State": "attached",
+            "AttachTime": "2026-09-26T15:13:34+00:00"
+          }
+        ],
+        "Encrypted": false
+      },
+      {
+        "AvailabilityZoneId": "aps1-az1",
+        "Iops": 100,
+        "VolumeType": "gp2",
+        "MultiAttachEnabled": false,
+        "Operator": {
+          "Managed": false,
+          "HiddenByDefault": false
+        },
         "VolumeArn": "arn:aws:ec2:ap-south-1:533266974611:volume/vol-0d7e69161a6111b5d",
         "OwnerId": "533266974611",
         "VolumeId": "vol-0d7e69161a6111b5d",

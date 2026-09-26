@@ -11,7 +11,7 @@
         "i-0032be4a13c7f0ab3"
       ],
       "ami_id": "ami-05afd67c4a44cc983",
-      "ami_age_days": 1293,
+      "ami_age_days": 1292,
       "ami_age_reason": null,
       "instance_type": "t3.micro",
       "port": 8080,
@@ -64,10 +64,10 @@
     "depends_on": [],
     "tags": {
       "Name": "app-catalog",
-      "owner": "team-x",
-      "cost-center": "cc-1",
       "data-class": "internal",
-      "findings": "SG_OPEN_SSH,SG_OPEN_APP,EBS_UNENCRYPTED,IMDSV1,OLD_AMI,NO_VPC_SEGMENTATION,PUBLIC_IP"
+      "owner": "team-x",
+      "findings": "SG_OPEN_SSH,SG_OPEN_APP,EBS_UNENCRYPTED,IMDSV1,OLD_AMI,NO_VPC_SEGMENTATION,PUBLIC_IP",
+      "cost-center": "cc-1"
     },
     "findings": [
       "SG_OPEN_SSH",
@@ -77,6 +77,235 @@
       "OLD_AMI",
       "NO_VPC_SEGMENTATION",
       "PUBLIC_IP"
+    ],
+    "status": "TIERED"
+  },
+  {
+    "app_id": "app-gitea",
+    "source": "real",
+    "name": "app-gitea",
+    "owner": "team-x",
+    "business_unit": null,
+    "runtime": {
+      "type": "ec2",
+      "instance_ids": [
+        "i-05ecad8a65418671a"
+      ],
+      "ami_id": "ami-05afd67c4a44cc983",
+      "ami_age_days": 1292,
+      "ami_age_reason": null,
+      "instance_type": "t3.micro",
+      "port": 8080,
+      "stateful": true
+    },
+    "network": {
+      "vpc_id": "vpc-0bc12dd6664275ce7",
+      "vpc_has_private_subnet": false,
+      "subnet_public": true,
+      "public_ip": true,
+      "private_ip": "10.10.1.115",
+      "sg_ids": [
+        "sg-08931c8c0154c950e"
+      ],
+      "sg_ingress": [
+        {
+          "port": 8080,
+          "cidr": "0.0.0.0/0",
+          "source_sg": null
+        },
+        {
+          "port": 22,
+          "cidr": "0.0.0.0/0",
+          "source_sg": null
+        }
+      ]
+    },
+    "storage": {
+      "ebs_encrypted": false,
+      "volume_gb": 8,
+      "extra_volume_gb": 0
+    },
+    "metadata": {
+      "imds_v2_required": false
+    },
+    "config": {
+      "env": {}
+    },
+    "license": "none",
+    "depends_on": [],
+    "tags": {
+      "owner": "team-x",
+      "cost-center": "cc-1",
+      "findings": "SG_OPEN_SSH,SG_OPEN_APP,EBS_UNENCRYPTED,IMDSV1,OLD_AMI,NO_VPC_SEGMENTATION,PUBLIC_IP,STATEFUL",
+      "data-class": "internal",
+      "stateful": "true",
+      "Name": "app-gitea"
+    },
+    "findings": [
+      "SG_OPEN_SSH",
+      "SG_OPEN_APP",
+      "EBS_UNENCRYPTED",
+      "IMDSV1",
+      "OLD_AMI",
+      "NO_VPC_SEGMENTATION",
+      "PUBLIC_IP",
+      "STATEFUL"
+    ],
+    "status": "TIERED"
+  },
+  {
+    "app_id": "app-juice-shop",
+    "source": "real",
+    "name": "app-juice-shop",
+    "owner": "team-x",
+    "business_unit": null,
+    "runtime": {
+      "type": "ec2",
+      "instance_ids": [
+        "i-041086d6afa118454"
+      ],
+      "ami_id": "ami-05afd67c4a44cc983",
+      "ami_age_days": 1292,
+      "ami_age_reason": null,
+      "instance_type": "t3.micro",
+      "port": 8080,
+      "stateful": false
+    },
+    "network": {
+      "vpc_id": "vpc-0bc12dd6664275ce7",
+      "vpc_has_private_subnet": false,
+      "subnet_public": true,
+      "public_ip": true,
+      "private_ip": "10.10.1.210",
+      "sg_ids": [
+        "sg-03d7ae75484d6556c"
+      ],
+      "sg_ingress": [
+        {
+          "port": 8080,
+          "cidr": "0.0.0.0/0",
+          "source_sg": null
+        },
+        {
+          "port": 8080,
+          "cidr": "10.20.0.0/16",
+          "source_sg": null
+        },
+        {
+          "port": 22,
+          "cidr": "0.0.0.0/0",
+          "source_sg": null
+        }
+      ]
+    },
+    "storage": {
+      "ebs_encrypted": false,
+      "volume_gb": 8,
+      "extra_volume_gb": 0
+    },
+    "metadata": {
+      "imds_v2_required": false
+    },
+    "config": {
+      "env": {}
+    },
+    "license": "none",
+    "depends_on": [],
+    "tags": {
+      "owner": "team-x",
+      "cost-center": "cc-1",
+      "findings": "SG_OPEN_SSH,SG_OPEN_APP,EBS_UNENCRYPTED,IMDSV1,OLD_AMI,NO_VPC_SEGMENTATION,PUBLIC_IP",
+      "data-class": "internal",
+      "Name": "app-juice-shop"
+    },
+    "findings": [
+      "SG_OPEN_SSH",
+      "SG_OPEN_APP",
+      "EBS_UNENCRYPTED",
+      "IMDSV1",
+      "OLD_AMI",
+      "NO_VPC_SEGMENTATION",
+      "PUBLIC_IP"
+    ],
+    "status": "TIERED"
+  },
+  {
+    "app_id": "app-orders",
+    "source": "real",
+    "name": "app-orders",
+    "owner": null,
+    "business_unit": null,
+    "runtime": {
+      "type": "ec2",
+      "instance_ids": [
+        "i-0760301add067febd"
+      ],
+      "ami_id": "ami-05afd67c4a44cc983",
+      "ami_age_days": 1292,
+      "ami_age_reason": null,
+      "instance_type": "t3.micro",
+      "port": 8080,
+      "stateful": false
+    },
+    "network": {
+      "vpc_id": "vpc-0bc12dd6664275ce7",
+      "vpc_has_private_subnet": false,
+      "subnet_public": true,
+      "public_ip": true,
+      "private_ip": "10.10.1.30",
+      "sg_ids": [
+        "sg-087bff42e934b9e4a"
+      ],
+      "sg_ingress": [
+        {
+          "port": 8080,
+          "cidr": "0.0.0.0/0",
+          "source_sg": null
+        },
+        {
+          "port": 8080,
+          "cidr": "10.20.0.0/16",
+          "source_sg": null
+        },
+        {
+          "port": 22,
+          "cidr": "0.0.0.0/0",
+          "source_sg": null
+        }
+      ]
+    },
+    "storage": {
+      "ebs_encrypted": false,
+      "volume_gb": 8,
+      "extra_volume_gb": 0
+    },
+    "metadata": {
+      "imds_v2_required": false
+    },
+    "config": {
+      "env": {
+        "PRICING_URL": "http://10.10.1.138:8080"
+      }
+    },
+    "license": "none",
+    "depends_on": [
+      "app-pricing"
+    ],
+    "tags": {
+      "depends-on": "app-pricing",
+      "findings": "SG_OPEN_SSH,SG_OPEN_APP,EBS_UNENCRYPTED,IMDSV1,OLD_AMI,NO_VPC_SEGMENTATION,PUBLIC_IP,MISSING_TAGS,HARDCODED_IP",
+      "Name": "app-orders"
+    },
+    "findings": [
+      "SG_OPEN_SSH",
+      "SG_OPEN_APP",
+      "EBS_UNENCRYPTED",
+      "IMDSV1",
+      "OLD_AMI",
+      "NO_VPC_SEGMENTATION",
+      "PUBLIC_IP",
+      "MISSING_TAGS",
+      "HARDCODED_IP"
     ],
     "status": "TIERED"
   },
@@ -92,7 +321,7 @@
         "i-083cbe5dc9b43a3a3"
       ],
       "ami_id": "ami-05afd67c4a44cc983",
-      "ami_age_days": 1293,
+      "ami_age_days": 1292,
       "ami_age_reason": null,
       "instance_type": "t3.micro",
       "port": 8080,
@@ -148,9 +377,9 @@
       "app-catalog"
     ],
     "tags": {
-      "Name": "app-pricing",
       "depends-on": "app-catalog",
-      "findings": "SG_OPEN_SSH,SG_OPEN_APP,EBS_UNENCRYPTED,IMDSV1,OLD_AMI,NO_VPC_SEGMENTATION,PUBLIC_IP,MISSING_TAGS"
+      "findings": "SG_OPEN_SSH,SG_OPEN_APP,EBS_UNENCRYPTED,IMDSV1,OLD_AMI,NO_VPC_SEGMENTATION,PUBLIC_IP,MISSING_TAGS",
+      "Name": "app-pricing"
     },
     "findings": [
       "SG_OPEN_SSH",
@@ -166,41 +395,36 @@
     "status": "TIERED"
   },
   {
-    "app_id": "app-orders",
+    "app_id": "app-vaultwarden",
     "source": "real",
-    "name": "app-orders",
-    "owner": null,
+    "name": "app-vaultwarden",
+    "owner": "team-x",
     "business_unit": null,
     "runtime": {
       "type": "ec2",
       "instance_ids": [
-        "i-0760301add067febd"
+        "i-0fc825d85d3ecf824"
       ],
       "ami_id": "ami-05afd67c4a44cc983",
-      "ami_age_days": 1293,
+      "ami_age_days": 1292,
       "ami_age_reason": null,
       "instance_type": "t3.micro",
       "port": 8080,
-      "stateful": false
+      "stateful": true
     },
     "network": {
       "vpc_id": "vpc-0bc12dd6664275ce7",
       "vpc_has_private_subnet": false,
       "subnet_public": true,
       "public_ip": true,
-      "private_ip": "10.10.1.30",
+      "private_ip": "10.10.1.169",
       "sg_ids": [
-        "sg-087bff42e934b9e4a"
+        "sg-06715ce00b63aedaf"
       ],
       "sg_ingress": [
         {
           "port": 8080,
           "cidr": "0.0.0.0/0",
-          "source_sg": null
-        },
-        {
-          "port": 8080,
-          "cidr": "10.20.0.0/16",
           "source_sg": null
         },
         {
@@ -219,18 +443,17 @@
       "imds_v2_required": false
     },
     "config": {
-      "env": {
-        "PRICING_URL": "http://10.10.1.138:8080"
-      }
+      "env": {}
     },
     "license": "none",
-    "depends_on": [
-      "app-pricing"
-    ],
+    "depends_on": [],
     "tags": {
-      "Name": "app-orders",
-      "depends-on": "app-pricing",
-      "findings": "SG_OPEN_SSH,SG_OPEN_APP,EBS_UNENCRYPTED,IMDSV1,OLD_AMI,NO_VPC_SEGMENTATION,PUBLIC_IP,MISSING_TAGS,HARDCODED_IP"
+      "owner": "team-x",
+      "cost-center": "cc-1",
+      "stateful": "true",
+      "data-class": "internal",
+      "findings": "SG_OPEN_SSH,SG_OPEN_APP,EBS_UNENCRYPTED,IMDSV1,OLD_AMI,NO_VPC_SEGMENTATION,PUBLIC_IP,STATEFUL",
+      "Name": "app-vaultwarden"
     },
     "findings": [
       "SG_OPEN_SSH",
@@ -240,8 +463,7 @@
       "OLD_AMI",
       "NO_VPC_SEGMENTATION",
       "PUBLIC_IP",
-      "MISSING_TAGS",
-      "HARDCODED_IP"
+      "STATEFUL"
     ],
     "status": "TIERED"
   }

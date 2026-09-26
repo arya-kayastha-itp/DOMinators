@@ -1,85 +1,61 @@
 # Status — Working / Broken / Next
 
-_Updated 2026-09-26. Track 2 (Discovery + Planning) is done; Track 3
-(Blueprint + Cutover) is built and tested against fixtures and a local fake
-ALB — real AWS/Terraform verification is still open (no `terraform` binary or
-Account B credentials on this machine). This file is the integration
-captain's running view (T2-I-1). `checklist.md` is the detailed record._
+_Updated 2026-09-27. Tracks 2 and 3 are done, and the **full chain has now run
+end to end against real AWS**: `scripts/e2e_real.sh` migrated `app-catalog`
+live (Discovery → Planning → Terraform apply → gated cutover → MIGRATED), then
+restored it to legacy. This file is the integration captain's running view
+(T2-I-1). `checklist.md` is the detailed record._
 
 ## Working
 
+- **End to end (T2-I-3)** — `scripts/e2e_real.sh [app]` (`--cutover-only` to
+  retry step 4, `--restore` to go back to 100% legacy). Live run 2026-09-27:
+  golden `app-catalog` (`i-0f3e1e4f37dc02f57`) applied and healthy, cutover
+  10/50/100 on real traffic (target share 0.097 / 0.50 / 1.0, 0% errors,
+  p95 ~100–120 ms) → MIGRATED → restored (10/10 requests back on `legacy`).
 - **Framework** (`agents/common/`): contract models, SQLite store, event log,
-  two-hop AWS sessions, fixture loader. `pytest` → 94 tests green (~3 min,
-  mostly Cutover's real subprocess/HTTP fake-ALB tests).
+  two-hop AWS sessions, fixture loader. `pytest` → 94 tests green.
 - **Discovery** — `python -m agents.discovery --scope real|synthetic|all`
   - Live against Account A: 6 real apps. catalog 100, pricing 90, orders 90,
     juice-shop 100 → GOLDEN; gitea and vaultwarden → RED (`STATEFUL`), score 30.
-  - Edges `orders → pricing → catalog`, each found by all 3 signals (tag, ssm, sg_ref).
-  - All 10 finding codes seen in a real scan; the oracle test matches each
-    instance's `findings` tag (plus D1's `HARDCODED_IP` on pricing).
+  - Edges `orders → pricing → catalog`, each found by all 3 signals.
+  - All 10 finding codes seen in a real scan; the oracle test matches all 6
+    instances' `findings` tags (plus D1's `HARDCODED_IP` on pricing).
   - 1,000 synthetic apps rules-only in < 3 s → 59.6 / 25.1 / 15.3.
-- **Planning** — `python -m agents.planning --capacity 40 --start 2026-09-28`
-  - 1,006 apps → 851 schedulable in 29 waves, 155 parked, finish 2026-12-02
-    (meets 2027). Wave 0 = catalog → pricing → orders → juice-shop.
-  - No consumer is ever scheduled before its provider (tested on the full fleet).
-- **Fleet** — `python data/generate_fleet.py --count 1000 --seed 42` (committed as `data/fleet.json`).
-- **Blueprint** — `python -m agents.blueprint --app app-catalog [--apply]`
-  - Rules mapper reproduces the CONTRACTS.md `app-orders` example exactly
-    (`UPSTREAM_URL` rewritten off the real dependency edge, not string
-    parsing); schema validation catches leftover IPs, bad instance types,
-    missing tags.
-  - Diff: 7 annotated fixes for `app-catalog`, 9 each for
-    `app-pricing`/`app-orders` — `fixtures/blueprint_app-*.json` regenerated
-    from the real agent (all 3 real apps now, not just catalog).
-  - 1,000 synthetic dry runs (map → validate → render → diff, no terraform)
-    in **5.3s** (< 30s target).
-  - Terraform runner, health polling and fix-&-retry are implemented and
-    unit-tested against a faked `terraform` module; not yet run against a
-    real `terraform` binary or Account B (needs T1-2).
-- **Cutover** — `python -m agents.cutover --app app-catalog`
-  - Local fake-ALB harness (`agents/cutover/fake_alb.py`): two real
-    `app/server.py` processes behind a weighted proxy, same
-    `modify_rule`/`describe_rules`/`describe_target_health` shape as boto3.
-  - Verified against it: a clean 2-step migration follows the weights
-    exactly; a bad-target run (`REQUIRE_UPSTREAM=1`, no `UPSTREAM_URL`) rolls
-    back at 10% inside one observe window; an unhealthy target aborts
-    precheck with weights untouched; a mid-loop exception still resets
-    weights to 100/0 via the guarded `finally`.
-  - Synthetic wave simulation: a 1,000-app wave (seeded, deterministic) runs
-    in 1.4s at a ~2–3% rollback rate.
-  - Not yet done: a real ALB run (needs T1-1), and a literal OS-level kill
-    test on the demo host (only an in-process exception was exercised here).
+- **Planning** — 1,006 apps → 851 schedulable in 29 waves, 155 parked, finish
+  2026-12-02 (meets 2027). Wave 0 = catalog → pricing → orders → juice-shop.
+- **Fixtures** — all 6 real apps, rebuilt from recorded responses by
+  `scripts/build_fixtures.py` (real Discovery + Planning, pinned clock).
+- **Blueprint** — rules mapper, schema validation, 7–9 annotated fixes per real
+  app, 1,000 synthetic dry runs in ~5 s; **real `terraform apply` verified** on
+  `app-catalog`.
+- **Cutover** — fake-ALB harness + synthetic wave sim (Track 3), and now a
+  **real ALB run**: T1-1 applied, so `mig-agent-runner` can describe and
+  modify the (now tagged) listener rules.
 
 ## Broken / caveats
 
-- **Real scan timing on the Account B owner's laptop**: ~20 s end to end
-  (spec: < 10 s). The scan itself is ~5 s; the rest is machine-specific —
-  Python needs 26–36 s to load certifi's CA bundle here (worked around with
-  `AWS_CA_BUNDLE`, ~1.2 s per connection), and a venv inside OneDrive makes
-  botocore's file reads very slow (52 s → 20 s after moving the venv to
-  `%LOCALAPPDATA%\dominators-venv`). Expected 3–5 s on a normal machine.
-- **LLM paths are untested**: borderline tiering (`submit_tiering`), the
-  Planning rationale, Blueprint's `mapper_llm`, and Cutover's `explainer` are
-  all rules/template only until Track 4's `llm.py` lands. Every decision is
-  currently `decided_by=rules`, which the spec requires to work anyway.
-- **Fixtures cover the 3 original apps**; Juice Shop, Gitea and Vaultwarden are
-  live but still being tested, so they're not in `fixtures/` yet.
-- **No `terraform` binary or Account B credentials on this machine**: Blueprint's
-  terraform runner and Cutover's real `weights.py` path are implemented and
-  unit-tested (mocks / the fake ALB) but not yet exercised against real
-  infrastructure. Needs T1-1 (ALB describe/modify perms) and T1-2
-  (`mig-tf-apply` PassRole) either way.
-- **No literal process-kill test yet** for Cutover — the `finally`/signal/atexit
-  rollback path is verified via an injected mid-loop exception, which is
-  functionally the same guarantee, but the checklist's "kill -9 on the actual
-  demo host OS" step (signal handling differs on Windows) hasn't been run for real.
+- **Cutover timing on the real ALB**: ~110 s for 10/50/100, not 60–90 s. The ALB
+  keeps sending 0% to the new target for ~12 s after a weight change; the first
+  live run (`settle_s` 2) rolled back with target share 0.03. `config.yaml` is now
+  `settle_s` 15 / `observe_window_s` 35 / `min_target_share_ratio` 0.6 (see its
+  comments) — Track 3 to review.
+- **Cutover needs a traffic generator running** — outside the orchestrator
+  (T4-O-8) nothing produces samples and the gate fails with "0 requests". The
+  e2e script runs one; the orchestrator must too.
+- **LLM paths untested** (tiering, Planning rationale, `mapper_llm`, `explainer`)
+  until Track 4's `llm.py` exists — everything is `decided_by=rules`.
+- **Account B owner's laptop is slow for AWS work**: Python needs 26–36 s to load
+  certifi's CA bundle (worked around with `AWS_CA_BUNDLE`), and anything inside
+  OneDrive (the venv, Terraform's provider cache) is slow — first
+  `terraform init` for a blueprint took ~2 min. Use a venv outside OneDrive
+  (`%LOCALAPPDATA%\dominators-venv`).
+- **No literal process-kill test yet** for Cutover on the demo host.
 
 ## Next
 
-- Track 4 (C1): orchestrator against the real `discovery.run` / `planning.run`
-  / `blueprint.run` / `cutover.run`; `llm.py`.
-- Track 3: run Blueprint and Cutover for real once Account B access + a
-  `terraform` binary are available (T1-1, T1-2); a real kill test for Cutover.
-- Once the 3 new apps are stable: re-record `fixtures/aws/`, extend the fixtures, register
-  legacy Juice Shop in `tg-app-juice-shop-legacy`.
-- `scripts/e2e_real.sh` (T2-I-3) now that Blueprint and Cutover are real.
+- Track 4 (C1): orchestrator on the real agents (must autostart the traffic
+  generator, T4-O-8); `llm.py`, then test the 4 LLM paths.
+- Track 3: review the gate tuning; real bad-wave run on `app-orders`; kill test.
+- Register legacy Juice Shop in `tg-app-juice-shop-legacy` when the team says so.
+- Decide whether to keep the golden `app-catalog` instance running between rehearsals.

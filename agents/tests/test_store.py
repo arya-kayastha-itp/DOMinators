@@ -12,7 +12,7 @@ def test_upsert_apps_is_idempotent_and_filterable():
     store.upsert_apps(apps)
     store.upsert_apps(apps)
     assert [a.app_id for a in store.get_apps()] == sorted(a.app_id for a in apps)
-    assert len(store.get_apps(source="real")) == 3
+    assert len(store.get_apps(source="real")) == len(apps)
     assert store.get_apps(source="synthetic") == []
 
 
@@ -33,7 +33,7 @@ def test_tiers_edges_plan_blueprint_cutover_roundtrip():
     store.save_plan(fixtures.plan())
     store.save_blueprint(fixtures.blueprint())
     store.save_cutover(fixtures.cutover("app-orders"))
-    assert len(store.get_tiers()) == 3
+    assert len(store.get_tiers()) == len(fixtures.tiers())
     assert len(store.get_edges()) == 1
     assert store.get_plan() == fixtures.plan()
     assert store.get_blueprint("app-catalog") == fixtures.blueprint()

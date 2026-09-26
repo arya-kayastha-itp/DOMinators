@@ -30,8 +30,8 @@ def _assert_providers_first(plan, edges):
 
 def test_real_apps_form_the_pilot_providers_first():
     plan = build_plan(fixtures.apps(), fixtures.tiers(), fixtures.edges(), start_date=date(2026, 9, 28), now=NOW)
-    assert plan.waves[0].app_ids == ["app-catalog", "app-pricing", "app-orders"]
-    assert plan.waves[0].name == "Pilot" and plan.parked == []
+    assert plan.waves[0].app_ids == ["app-catalog", "app-pricing", "app-orders", "app-juice-shop"]
+    assert plan.waves[0].name == "Pilot" and plan.parked == ["app-gitea", "app-vaultwarden"]
 
 
 def test_thousand_apps_plan_fast_and_valid(fleet_world):
@@ -43,7 +43,7 @@ def test_thousand_apps_plan_fast_and_valid(fleet_world):
     assert set(plan.parked) == red
     scheduled = [a for w in plan.waves for a in w.app_ids]
     assert len(scheduled) == len(set(scheduled)) == len(apps) - len(red)
-    assert plan.waves[0].app_ids == ["app-catalog", "app-pricing", "app-orders"]
+    assert plan.waves[0].app_ids == ["app-catalog", "app-pricing", "app-orders", "app-juice-shop"]
     _assert_providers_first(plan, edges)
 
 

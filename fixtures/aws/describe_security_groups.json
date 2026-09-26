@@ -147,6 +147,76 @@
         ]
       },
       {
+        "GroupId": "sg-03d7ae75484d6556c",
+        "IpPermissionsEgress": [
+          {
+            "IpProtocol": "-1",
+            "UserIdGroupPairs": [],
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": []
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "app-juice-shop-sg"
+          },
+          {
+            "Key": "aws:cloudformation:stack-id",
+            "Value": "arn:aws:cloudformation:ap-south-1:533266974611:stack/mig-legacy-all/8b2b44f0-b935-11f1-8e4f-02809389843b"
+          },
+          {
+            "Key": "aws:cloudformation:logical-id",
+            "Value": "JuiceShopSG"
+          },
+          {
+            "Key": "aws:cloudformation:stack-name",
+            "Value": "mig-legacy-all"
+          }
+        ],
+        "VpcId": "vpc-0bc12dd6664275ce7",
+        "SecurityGroupArn": "arn:aws:ec2:ap-south-1:533266974611:security-group/sg-03d7ae75484d6556c",
+        "OwnerId": "533266974611",
+        "GroupName": "mig-legacy-all-JuiceShopSG-2GxVJ9iDZH4r",
+        "Description": "app-juice-shop SG - deliberately open",
+        "IpPermissions": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 8080,
+            "ToPort": 8080,
+            "UserIdGroupPairs": [],
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              },
+              {
+                "CidrIp": "10.20.0.0/16"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": []
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 22,
+            "ToPort": 22,
+            "UserIdGroupPairs": [],
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": []
+          }
+        ]
+      },
+      {
         "GroupId": "sg-065d0452162327c39",
         "IpPermissionsEgress": [
           {
@@ -176,6 +246,73 @@
               }
             ],
             "IpRanges": [],
+            "Ipv6Ranges": [],
+            "PrefixListIds": []
+          }
+        ]
+      },
+      {
+        "GroupId": "sg-06715ce00b63aedaf",
+        "IpPermissionsEgress": [
+          {
+            "IpProtocol": "-1",
+            "UserIdGroupPairs": [],
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": []
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "aws:cloudformation:stack-id",
+            "Value": "arn:aws:cloudformation:ap-south-1:533266974611:stack/mig-legacy-all/8b2b44f0-b935-11f1-8e4f-02809389843b"
+          },
+          {
+            "Key": "aws:cloudformation:logical-id",
+            "Value": "VaultwardenSG"
+          },
+          {
+            "Key": "Name",
+            "Value": "app-vaultwarden-sg"
+          },
+          {
+            "Key": "aws:cloudformation:stack-name",
+            "Value": "mig-legacy-all"
+          }
+        ],
+        "VpcId": "vpc-0bc12dd6664275ce7",
+        "SecurityGroupArn": "arn:aws:ec2:ap-south-1:533266974611:security-group/sg-06715ce00b63aedaf",
+        "OwnerId": "533266974611",
+        "GroupName": "mig-legacy-all-VaultwardenSG-qBUxFD5YGz58",
+        "Description": "app-vaultwarden SG - deliberately open",
+        "IpPermissions": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 8080,
+            "ToPort": 8080,
+            "UserIdGroupPairs": [],
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": []
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 22,
+            "ToPort": 22,
+            "UserIdGroupPairs": [],
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              }
+            ],
             "Ipv6Ranges": [],
             "PrefixListIds": []
           }
@@ -236,6 +373,73 @@
               },
               {
                 "CidrIp": "10.20.0.0/16"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": []
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 22,
+            "ToPort": 22,
+            "UserIdGroupPairs": [],
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": []
+          }
+        ]
+      },
+      {
+        "GroupId": "sg-08931c8c0154c950e",
+        "IpPermissionsEgress": [
+          {
+            "IpProtocol": "-1",
+            "UserIdGroupPairs": [],
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": []
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "aws:cloudformation:stack-name",
+            "Value": "mig-legacy-all"
+          },
+          {
+            "Key": "Name",
+            "Value": "app-gitea-sg"
+          },
+          {
+            "Key": "aws:cloudformation:stack-id",
+            "Value": "arn:aws:cloudformation:ap-south-1:533266974611:stack/mig-legacy-all/8b2b44f0-b935-11f1-8e4f-02809389843b"
+          },
+          {
+            "Key": "aws:cloudformation:logical-id",
+            "Value": "GiteaSG"
+          }
+        ],
+        "VpcId": "vpc-0bc12dd6664275ce7",
+        "SecurityGroupArn": "arn:aws:ec2:ap-south-1:533266974611:security-group/sg-08931c8c0154c950e",
+        "OwnerId": "533266974611",
+        "GroupName": "mig-legacy-all-GiteaSG-aEvbzODpYLta",
+        "Description": "app-gitea SG - deliberately open",
+        "IpPermissions": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 8080,
+            "ToPort": 8080,
+            "UserIdGroupPairs": [],
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
               }
             ],
             "Ipv6Ranges": [],

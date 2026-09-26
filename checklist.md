@@ -105,10 +105,15 @@ checks of the edge ALB._
 ## ⏳ To do
 
 ### 6. Cloud carry-over — Track 4 / C1 ([TRACK_1_CLOUD.md](docs/TRACK_1_CLOUD.md))
-- [ ] T1-1 Tag ALB listener rules + unconditioned `elasticloadbalancing:Describe*` for
-      `mig-agent-runner`; verify `modify-rule` / `describe-target-health` as that role
-- [ ] T1-2 `iam:PassRole` (on `mig-app-instance`) + `iam:GetInstanceProfile` for
-      `mig-tf-apply` — or record the decision to apply with the admin profile
+- [x] T1-1 Listener rules tagged `managed-by=migration-accelerator`; `mig-agent-runner`
+      policy split: `ModifyRule`/`ModifyListener` + EC2 mutations stay tag-conditioned,
+      `elasticloadbalancing:Describe*` + `ec2:Describe*` unconditioned (a tag condition
+      on Describe silently denies every call). Applied 0/5/0; verified as the runner:
+      `describe_rules`, `describe_target_health`, then a real `modify_rule` 10→50→100→0
+      during the live cutover (2026-09-27)
+- [x] T1-2 Decision: Terraform applies with the admin profile (`TF_APPLY_USE_PROFILE=1`
+      in `.env`) rather than granting `mig-tf-apply` `iam:PassRole`; used for the live
+      `app-catalog` apply
 - [ ] T1-3 Bedrock Claude access in `ap-south-1` confirmed with one call; `LLM_MODEL_ID` in `.env`
 - [x] T1-4 `app_routes` output in `envs/target` (`path_prefix`, `priority`, `port`,
       `listener_port`, `health_path`, `runtime`); `data/target_outputs.json` re-exported
@@ -162,9 +167,8 @@ checks of the edge ALB._
 - [x] Track 3: Blueprint passes `app_routes[app].runtime` into `golden_app` and
       handles apps with a `listener_port` (no `path_prefix`) — `mapper_rules.py`
       reads both from `target_outputs.json`, never hardcoded
-- [ ] `envs/target` listener rules: `lifecycle { ignore_changes = [action] }` (or
-      equivalent), otherwise the next `terraform apply` resets Cutover's weights to
-      100/0 and silently undoes a migration
+- [x] `edge_alb` listener rules: `lifecycle { ignore_changes = [action] }`, so a later
+      `terraform apply` can't silently reset Cutover's weights and undo a migration
 - [ ] Decide on AMI churn: golden_app reads "latest AL2023", so any apply after AWS
       publishes a new AMI replaces running golden instances (e.g. `ignore_changes =
       [ami]`, or pin per wave)
@@ -206,9 +210,10 @@ checks of the edge ALB._
       `blueprint_app-orders.json` the same way; `cutover_*.json` /
       `traffic_app-orders.json` reviewed and left as-is — still a faithful,
       schema-valid example of a `ROLLED_BACK` run
-- [ ] Re-record `fixtures/aws/` and extend `fixtures/apps.json` etc. with
-      `app-juice-shop` / `app-gitea` / `app-vaultwarden` once Account A testing finishes
-      (all live, but deliberately left out of the fixtures while they're being tested)
+- [x] `fixtures/aws/` re-recorded with all 6 real apps; `apps` / `tiers` / `edges` /
+      `summary` / `plan` rebuilt by `scripts/build_fixtures.py` (real Discovery +
+      Planning over the recording, pinned clock) — 4 GOLDEN, 2 RED, Wave 0 = catalog →
+      pricing → orders → juice-shop; oracle test matches all 6 `findings` tags
 
 ### 8. Shared framework
 - [x] T2-FW-1 `store.py` implemented + tests (idempotent upserts, `set_status`,
@@ -278,7 +283,17 @@ checks of the edge ALB._
 - [x] T2-F-3 Tuned to 59.6 / 25.1 / 15.3 (runtime mix → 70/20/10, commercial → 2%);
       sanity checks printed and enforced; `data/fleet.json` committed
 - [x] T2-I-1 `STATUS.md` created (Working / Broken / Next)
-- [ ] T2-I-3 `scripts/e2e_real.sh`
+- [x] T2-I-3 `scripts/e2e_real.sh` — **passed live** for `app-catalog` (2026-09-27):
+      Discovery (6 real + 1,000) → Planning → Blueprint `terraform apply`
+      (`i-0f3e1e4f37dc02f57`, healthy) → Cutover 10/50/100 on real traffic (target
+      share 0.097 / 0.50 / 1.0, 0% errors, p95 ~100–120 ms) → `MIGRATED`; then
+      `--restore` put `/catalog` back on 100% legacy (verified 10/10 `legacy`). Runs its
+      own traffic generator (outside the orchestrator nothing produces samples);
+      `--cutover-only` for retries
+- [ ] Golden `app-catalog` instance `i-0f3e1e4f37dc02f57` left running for Track 3 /
+      demo reuse — `terraform destroy` in `generated/app-catalog` when not needed
+- [ ] T2-D-5 / T2-P-5 LLM paths still untested — Track 4's `agents/common/llm.py`
+      doesn't exist yet
 
 ### 11. Blueprint/IaC — Track 3 / A3
 - [x] T3-B-1 `GoldenInputs` schema (no IP literals in `env`) — `schema.py`:
@@ -323,9 +338,8 @@ checks of the edge ALB._
       `upsert_apps()` for the status change, same trick Discovery uses
 - [x] T3-B-11 `run()` + CLI — `python -m agents.blueprint --app app-catalog
       [--apply]`; statuses `BLUEPRINTED` → `PROVISIONED` / `FAILED`
-- [ ] `app-catalog` applied + healthy in `tg-app-catalog-target` — needs a real
-      `terraform` binary + Account B credentials, neither available on this
-      dev machine; blocked on T1-2 either way
+- [x] `app-catalog` applied + healthy in `tg-app-catalog-target` — done live from the
+      Account B owner's machine via `scripts/e2e_real.sh` (T1-2 = admin profile), 2026-09-27
 - [ ] `app-pricing` applied + healthy — same blocker
 - [ ] `app-orders` applied (bad variant) + healthy on `/health` — same blocker
 
@@ -373,9 +387,14 @@ checks of the edge ALB._
       `.gitignore`'s blanket `config.yaml` credential pattern needed a
       `!agents/cutover/config.yaml` exception (same style as the existing
       `envs/target` one) — it's gate thresholds, not secrets
-- [ ] Clean real cutover of `app-catalog` in 60–90 s — verified against the
-      **fake** ALB (weights follow correctly, traffic share tracks the
-      weight); the real ALB needs T1-1 and wasn't available here
+- [x] Clean real cutover of `app-catalog` against the **real** ALB: MIGRATED, all gates
+      passed (2026-09-27). Took ~110 s, not 60–90 s: the real ALB needs ~12 s to apply a
+      new weight, so `config.yaml` was tuned to `settle_s` 15 / `observe_window_s` 35 /
+      `min_target_share_ratio` 0.6 (the first live run at `settle_s` 2 rolled back with
+      target share 0.03), and `cutover.run()` now reads `observe_window_s` from config
+      when not passed, capping settle at half the window
+- [ ] Track 3 to review the gate tuning above and decide whether to trade the 60–90 s
+      target for it (e.g. shorter window at 50/100%, where noise isn't an issue)
 - [ ] Bad wave on `app-orders` rolls back automatically — verified 3× against
       the fake ALB's bad-target variant (rolls back at 10% every time, weights
       restored); not yet re-run against the real ALB/Account B

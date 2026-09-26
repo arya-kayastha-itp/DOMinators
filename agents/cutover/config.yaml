@@ -1,12 +1,20 @@
 # Cutover gate thresholds (T3-C-10). No credentials here — see the .gitignore
 # exception for this exact path.
+#
+# Tuned against the real ALB (2026-09-27): after elbv2:ModifyRule the ALB kept
+# sending 0% to the new target group for ~12 s, then the expected share. So:
+# settle_s 15 skips that propagation delay, observe_window_s 35 leaves ~20 s
+# (~380 requests at 20 req/s) of real data per step, and
+# min_target_share_ratio 0.6 keeps binomial noise at the 10% step from failing
+# a healthy app (~0.5% false-rollback risk vs ~12% at 0.8) while still catching
+# traffic that isn't moving at all.
 steps: [10, 50, 100]
-observe_window_s: 20
-settle_s: 2
+observe_window_s: 35
+settle_s: 15
 min_requests: 50
 gates:
   max_error_rate: 0.02
   max_p95_ms: 800
-  min_target_share_ratio: 0.8
+  min_target_share_ratio: 0.6
   require_healthy_targets: true
 heartbeat_interval_s: 1

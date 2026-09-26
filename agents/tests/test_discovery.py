@@ -32,7 +32,7 @@ def real_apps(raw):
 def test_scanner_is_scoped_and_includes_deprecated_images():
     ec2 = FakeClient()
     raw = scanner.scan(ec2, FakeClient(), [VPC])
-    assert len(raw.instances) == 3 and len(raw.images) == 1
+    assert len(raw.instances) == 6 and len(raw.images) == 1
     calls = dict(ec2.calls)
     assert calls["describe_images"]["IncludeDeprecated"] is True
     assert {"Name": "vpc-id", "Values": [VPC]} in calls["describe_instances"]["Filters"]
@@ -48,7 +48,7 @@ def test_scanner_refuses_to_scan_the_whole_account():
 
 def test_normalize_groups_by_name_and_reads_raw_facts(real_apps):
     by_id = {a.app_id: a for a in real_apps}
-    assert set(by_id) == {"app-catalog", "app-pricing", "app-orders"}
+    assert set(by_id) == {"app-catalog", "app-pricing", "app-orders", "app-juice-shop", "app-gitea", "app-vaultwarden"}
     cat = by_id["app-catalog"]
     # AMI created 2023-03-13T23:52Z -> 1292 full days at NOW (midnight 2026-09-26)
     assert cat.runtime.port == 8080 and cat.runtime.ami_age_days == 1292
@@ -125,7 +125,7 @@ def test_hostname_urls_and_version_numbers_are_not_ips():
 
 
 def test_oracle_matches_the_legacy_findings_tag(real_apps):
-    """T2-D-9: computed findings vs. each instance's `findings` tag (never an input)."""
+    """T2-D-9: computed findings vs. each instance's `findings` tag (never an input), all 6 real apps."""
     for app in rules.apply(real_apps):
         expected = set(app.tags["findings"].split(","))
         if app.app_id == "app-pricing":
@@ -164,12 +164,12 @@ def test_tiering_edge_cases():
 
 def test_run_real_persists_and_emits(real_apps):
     summary = discovery.run("real", real_apps=real_apps)
-    assert (summary.apps_total, summary.real, summary.edges) == (3, 3, 2)
-    assert summary.tiers == {Tier.GOLDEN: 3, Tier.GRAY: 0, Tier.RED: 0}
+    assert (summary.apps_total, summary.real, summary.edges) == (6, 6, 2)
+    assert summary.tiers == {Tier.GOLDEN: 4, Tier.GRAY: 0, Tier.RED: 2}
     assert {a.status for a in store.get_apps()} == {AppStatus.TIERED}
     types = [e.type for e in events.events_since(0)]
     assert types[0] == EventType.DISCOVERY_STARTED and types[-1] == EventType.DISCOVERY_DONE
-    assert types.count(EventType.APP_DISCOVERED) == 3
+    assert types.count(EventType.APP_DISCOVERED) == 6
 
 
 def test_partial_scope_keeps_the_other_sides_edges(real_apps):
@@ -182,7 +182,7 @@ def test_partial_scope_keeps_the_other_sides_edges(real_apps):
 def test_rerun_is_idempotent(real_apps):
     discovery.run("real", real_apps=real_apps)
     discovery.run("real", real_apps=real_apps)
-    assert len(store.get_apps()) == 3 and len(store.get_edges()) == 2
+    assert len(store.get_apps()) == 6 and len(store.get_edges()) == 2
 
 
 def test_synthetic_fleet_scale_and_tier_mix():
