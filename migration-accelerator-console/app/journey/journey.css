@@ -1,0 +1,214 @@
+/* ==========================================================================
+   /journey — scroll-driven landing page.
+   Always dark, whatever the console theme is. One accent (violet, the product
+   brand), plus success/fail used only for pipeline state.
+   ========================================================================== */
+
+/* scrollbar-gutter keeps the layout width fixed when scrolling is locked
+   (preloader, deep dive), so the pinned track never re-measures. */
+html:has(.journey-root) { background: #07070a; color-scheme: dark; scrollbar-gutter: stable; }
+
+.journey-root {
+  --j-bg: #07070a;
+  --j-bg-2: #0e0e13;
+  --j-fg: #f2f1ec;
+  --j-muted: rgb(242 241 236 / 0.56);
+  --j-faint: rgb(242 241 236 / 0.32);
+  --j-line: rgb(242 241 236 / 0.1);
+  --j-line-strong: rgb(242 241 236 / 0.2);
+  --j-accent: oklch(0.72 0.21 293);
+  --j-accent-soft: oklch(0.72 0.21 293 / 0.16);
+  --j-success: oklch(0.83 0.19 150);
+  --j-fail: oklch(0.68 0.22 25);
+
+  position: relative;
+  min-height: 100dvh;
+  background: var(--j-bg);
+  color: var(--j-fg);
+  font-family: var(--font-sans);
+  overflow-x: clip;
+}
+.journey-root ::selection { background: var(--j-accent); color: var(--j-bg); }
+.journey-root :focus-visible { outline: 2px solid var(--j-accent); outline-offset: 3px; border-radius: 8px; }
+
+/* Custom cursor replaces the native one only while it's mounted. */
+.journey-root.has-cursor,
+.journey-root.has-cursor * { cursor: none !important; }
+
+/* --- Type ---------------------------------------------------------------- */
+.j-display {
+  font-weight: 600;
+  letter-spacing: -0.055em;
+  line-height: 0.88;
+  font-size: clamp(3.25rem, 11.5vw, 12.5rem);
+}
+.j-h2 {
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+  font-size: clamp(2.5rem, 7vw, 7rem);
+}
+.j-serif { font-family: var(--font-serif), Georgia, serif; font-weight: 400; font-style: italic; letter-spacing: -0.02em; }
+.j-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--j-muted);
+}
+.j-mono { font-family: var(--font-mono); }
+
+/* SplitText masks: keep descenders and italic overhang inside the clip. */
+.j-split-line-mask { padding-bottom: 0.08em; margin-bottom: -0.08em; }
+
+/* --- Surfaces ------------------------------------------------------------ */
+.j-card {
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.055), rgb(255 255 255 / 0.02));
+  border: 1px solid var(--j-line);
+  border-radius: 20px;
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+}
+.j-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--j-line-strong);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.3;
+  color: var(--j-fg);
+  background: rgb(255 255 255 / 0.03);
+}
+
+/* Film grain over everything — static, so it costs nothing per frame. */
+.j-grain {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  opacity: 0.06;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Hero fallback (mobile, reduced motion, and under the WebGL canvas while it loads):
+   two blurred accent fields that drift on transform only. */
+.hero-fallback { background: var(--j-bg); overflow: hidden; }
+.hero-fallback::before,
+.hero-fallback::after {
+  content: '';
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(90px);
+  will-change: transform;
+}
+.hero-fallback::before {
+  width: 70vmax; height: 50vmax; right: -18vmax; top: -12vmax;
+  background: radial-gradient(closest-side, oklch(0.62 0.22 293 / 0.55), transparent);
+  animation: j-drift-a 22s ease-in-out infinite alternate;
+}
+.hero-fallback::after {
+  width: 55vmax; height: 40vmax; left: -20vmax; top: 30%;
+  background: radial-gradient(closest-side, oklch(0.5 0.18 280 / 0.35), transparent);
+  animation: j-drift-b 28s ease-in-out infinite alternate;
+}
+@keyframes j-drift-a { to { transform: translate3d(-12vmax, 8vmax, 0) scale(1.1); } }
+@keyframes j-drift-b { to { transform: translate3d(14vmax, -6vmax, 0) scale(0.92); } }
+@media (prefers-reduced-motion: reduce) {
+  .hero-fallback::before, .hero-fallback::after { animation: none; will-change: auto; }
+}
+
+/* --- Pipeline nodes -------------------------------------------------------
+   State lives on data-state (upcoming | active | done). Every change is an
+   opacity or transform transition on a stacked layer. */
+.j-node { transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
+.j-node[data-state='upcoming'] { opacity: 0.7; }
+.j-node[data-state='done'] { opacity: 0.4; }
+.j-node-scale { transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1); }
+.j-node[data-state='active'] .j-node-scale { transform: scale(1.28); }
+.j-node:hover .j-node-scale { transform: scale(1.12); }
+.j-node[data-state='active']:hover .j-node-scale { transform: scale(1.36); }
+.j-node-disc { background: var(--j-bg-2); border: 1px solid var(--j-line-strong); }
+.j-node-glow,
+.j-node-done {
+  position: absolute;
+  inset: -1px;
+  border-radius: 999px;
+  opacity: 0;
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.j-node-glow {
+  background: var(--j-accent);
+  box-shadow: 0 0 0 10px var(--j-accent-soft), 0 0 70px 12px oklch(0.72 0.21 293 / 0.5);
+}
+.j-node-done { border: 1.5px solid var(--j-success); background: oklch(0.83 0.19 150 / 0.08); }
+.j-node[data-state='active'] .j-node-glow { opacity: 1; }
+.j-node[data-state='done'] .j-node-done,
+.j-node[data-state='reached'] .j-node-done { opacity: 1; }
+.j-node-icon { position: relative; transition: color 0.3s; }
+.j-node[data-state='active'] .j-node-icon { color: var(--j-bg); }
+.j-node[data-state='done'] .j-node-icon,
+.j-node[data-state='reached'] .j-node-icon { color: var(--j-success); }
+
+/* The travelling data packet. */
+.j-packet {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 0 0 4px oklch(0.72 0.21 293 / 0.35), 0 0 28px 8px oklch(0.72 0.21 293 / 0.8), 0 0 90px 24px oklch(0.72 0.21 293 / 0.35);
+  pointer-events: none;
+  will-change: transform;
+}
+.j-trail {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 999px;
+  background: var(--j-accent);
+  pointer-events: none;
+}
+
+/* Live-status log lines slide in as they're appended. */
+.j-log-line { animation: j-line-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes j-line-in { from { opacity: 0; transform: translateY(8px); } }
+
+/* --- Buttons ------------------------------------------------------------- */
+.j-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 56px;
+  padding: 0 26px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  isolation: isolate;
+  overflow: hidden;
+}
+.j-btn-primary { background: var(--j-fg); color: var(--j-bg); }
+.j-btn-ghost { border: 1px solid var(--j-line-strong); color: var(--j-fg); }
+/* Hover fill rises from the bottom (transform only). */
+.j-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--j-accent);
+  transform: translateY(101%);
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.j-btn:hover::before { transform: translateY(0); }
+.j-btn-primary:hover { color: var(--j-fg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .j-btn::before { transition: none; }
+}
