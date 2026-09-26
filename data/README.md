@@ -17,12 +17,16 @@ Always use a **fixed seed**, so every rehearsal shows the same numbers.
 | `app_id` | `syn-00001` … `syn-01000` |
 | `name`, `owner` | Faker words, plus team names from a list of about 25 |
 | `business_unit` | Commercial, Medicare, Medicaid, Pharmacy, Retail, Corporate |
-| `runtime.type` | ec2 85%, ecs 10%, unknown 5% |
-| `runtime.stateful` | 12% true (these become most of the Red tier) |
+| `runtime.type` | ec2 70%, ecs 20%, unknown 10% (tuned from 85/10/5 — non-EC2 runtimes are the main GRAY driver; at 85/10/5 GRAY landed near 13%) |
+| stateful | 12%, marked in the raw config (tag `stateful=true`, a DB port open, or a 100–500 GB extra volume) — these become most of the Red tier |
 | `runtime.ami_age_days` | Uniform over 30–1,400 |
-| `findings` | Each finding applies independently with a probability of 30–70% |
-| `license` | none 90%, commercial 6%, byol 4% |
-| `depends_on` | From a scale-free graph (`networkx.barabasi_albert_graph(n, m=1..2)`): a few hub services with many dependents, and most apps with 0–3 dependencies |
+| `findings` | **Left empty.** The generator emits raw config (SG rules, encryption, IMDS, tags, env values, route facts) with 35–80% probabilities, and Discovery's own rules compute findings — the same logic as for the real apps |
+| `license` | none 94%, commercial 2%, byol 4% (tuned from 90/6/4 to bring Red down to ~15%) |
+| dependencies | Scale-free: `barabasi_albert_graph(n, m=1)` plus a second provider for ~15% of apps, always pointing newer → older (so no cycles). Expressed as raw signals Discovery reads back: a `depends-on` tag, an env URL naming the provider (35% as an IP literal → `HARDCODED_IP`), and 50% an SG rule allowing the consumer's SG |
+
+With seed 42 and 1,000 apps: **59.6% Golden / 25.1% Gray / 15.3% Red**, 1,135 edges,
+biggest hub has 94 dependents, no isolated apps, no self or dangling dependencies.
+`data/fleet.json` is committed so nobody has to regenerate it.
 
 ## Target tier mix after Discovery
 
