@@ -56,6 +56,7 @@ resource "aws_lb_target_group" "legacy" {
   health_check {
     path                = "${each.value.path_prefix}/health"
     interval            = 5
+    timeout             = 4
     healthy_threshold   = 2
     unhealthy_threshold = 3
   }
@@ -74,6 +75,7 @@ resource "aws_lb_target_group" "target" {
   health_check {
     path                = "${each.value.path_prefix}/health"
     interval            = 5
+    timeout             = 4
     healthy_threshold   = 2
     unhealthy_threshold = 3
   }

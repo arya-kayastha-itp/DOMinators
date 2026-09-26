@@ -6,7 +6,8 @@
 
 terraform {
   backend "s3" {
-    key    = "target/terraform.tfstate"
-    region = "ap-south-1"
+    key     = "target/terraform.tfstate"
+    region  = "ap-south-1"
+    profile = "mig-target"
   }
 }

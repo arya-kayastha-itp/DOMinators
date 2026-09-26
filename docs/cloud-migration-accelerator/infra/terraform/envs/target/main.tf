@@ -140,6 +140,7 @@ resource "aws_lb_target_group" "hello" {
   health_check {
     path                = "/hello/health"
     interval            = 5
+    timeout             = 4
     healthy_threshold   = 2
     unhealthy_threshold = 3
   }
