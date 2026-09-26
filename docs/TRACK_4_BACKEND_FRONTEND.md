@@ -71,9 +71,15 @@ access) blocks every agent's real-AWS phase — finish by H+8.
 
 ## C2's job: Frontend (Dashboard)
 
-**Stack:** React + Vite + TypeScript, React Flow (dependency graph), Recharts (charts),
-Tailwind. The UI is never the source of truth: after a refresh it rebuilds everything
-from the REST API, then resumes SSE from `Last-Event-ID`.
+**Stack (as built):** the console lives in [`migration-accelerator-console/`](../migration-accelerator-console/) —
+Next.js 16 (App Router, one route per tab) + TypeScript + Tailwind v4 + Base UI / shadcn + Framer Motion,
+Recharts (charts), three.js (3D dependency graph), `cmdk` (command palette), `sonner` (toasts),
+`next-themes` (light/dark). It replaces the Vite + React Flow plan above; `dashboard/README.md`
+still describes the views. Data comes from a contract-shaped mock layer (`lib/contracts.ts`,
+`lib/data/*`) and a state provider that simulates the four agents — swapping in the orchestrator
+means replacing the `run*` actions in `components/console/console-provider.tsx` with `POST /runs/*`
++ the `/events` SSE stream, not changing screens. The UI is never the source of truth: after a
+refresh it must rebuild everything from the REST API, then resume SSE from `Last-Event-ID`.
 
 ### Tasks
 
