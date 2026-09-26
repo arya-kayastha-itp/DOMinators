@@ -1,0 +1,495 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Account A (legacy) — single-stack setup: network, cross-account
+  readonly IAM role, and the 3 deliberately-insecure legacy apps
+  (app-catalog, app-pricing, app-orders) with their 3-way dependency
+  wiring. Peering route to Account B is optional and only created if
+  PeeringConnectionId is supplied (accept the peering via CLI first —
+  see the Peering section below).
+  Headline finding is NO_VPC_SEGMENTATION: this VPC was never given a
+  private-subnet tier, so every route table in it sends 0.0.0.0/0 to
+  the IGW. PUBLIC_IP is the per-instance consequence of that, not an
+  independent setting — see docs/ARCHITECTURE.md and
+  docs/CONTRACTS.md (network.vpc_has_private_subnet) at the repo root.
+
+Parameters:
+  EnvName:
+    Type: String
+    Default: mig-legacy
+
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Existing EC2 key pair (legacy SSH access is intentionally left open)
+
+  OldAmiId:
+    Type: AWS::EC2::Image::Id
+    Description: >
+      A pinned, OUT-OF-DATE Amazon Linux 2 AMI ID for this region.
+      Look one up manually — do not use the SSM "latest" parameter.
+
+  InstanceType:
+    Type: String
+    Default: t3.micro
+
+  AccountBId:
+    Type: String
+    Description: 12-digit AWS account ID of Account B (target)
+
+  ExternalId:
+    Type: String
+    Description: Shared secret required in the cross-account AssumeRole call
+    NoEcho: true
+
+  TargetVpcCidr:
+    Type: String
+    Default: 10.20.0.0/16
+    Description: Account B's VPC CIDR — allowed into the app port over peering
+
+  PeeringConnectionId:
+    Type: String
+    Default: ""
+    Description: >
+      Optional. pcx-xxxxxxxx, after you've accepted it via
+      `aws ec2 accept-vpc-peering-connection`. Leave blank to skip
+      the route and add it later in a stack update.
+
+Conditions:
+  HasPeering: !Not [!Equals [!Ref PeeringConnectionId, ""]]
+
+Resources:
+  # ================= Network =================
+  # NO_VPC_SEGMENTATION by design: this VPC has only a public tier.
+  # Both subnets route 0.0.0.0/0 to the IGW below, and there is no
+  # private subnet anywhere in this template — matching Discovery's
+  # rule (agents/discovery/README.md): "no route table in the
+  # instance's VPC lacks a 0.0.0.0/0 route to an IGW". PUBLIC_IP on
+  # each instance follows from subnet placement, it is not set
+  # independently.
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.10.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${EnvName}-vpc"
+        - Key: finding
+          Value: NO_VPC_SEGMENTATION
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${EnvName}-igw"
+
+  IGWAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.10.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${EnvName}-public-a"
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.10.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${EnvName}-public-b"
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${EnvName}-public-rt"
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: IGWAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetBRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
+
+  RouteToTarget:
+    Type: AWS::EC2::Route
+    Condition: HasPeering
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: !Ref TargetVpcCidr
+      VpcPeeringConnectionId: !Ref PeeringConnectionId
+
+  # ================= Cross-account IAM role =================
+
+  # Trusts Account B's account root, not the mig-agent-runner role ARN
+  # directly — IAM requires a role used as a trust-policy Principal to
+  # already exist, and mig-agent-runner won't exist until Account B is
+  # built. Account B's own IAM policy is what actually restricts which
+  # role/user can call sts:AssumeRole here (attach an inline policy on
+  # mig-agent-runner there granting sts:AssumeRole on this role's ARN
+  # once it exists).
+  DiscoveryReadOnlyRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: mig-discovery-readonly
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AccountBId}:root"
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Ref ExternalId
+      Policies:
+        - PolicyName: readonly-scan
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:Describe*
+                  - elasticloadbalancing:Describe*
+                  - ssm:GetParametersByPath
+                  - ssm:GetParameter
+                  - tag:GetResources
+                Resource: "*"
+
+  # ================= Security groups =================
+  # SG_OPEN_SSH / SG_OPEN_APP findings — independent of NO_VPC_SEGMENTATION,
+  # these are genuine per-app hygiene gaps (agents/discovery/README.md).
+
+  CatalogSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: app-catalog SG - deliberately open
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: !Ref TargetVpcCidr
+      Tags:
+        - Key: Name
+          Value: app-catalog-sg
+
+  PricingSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: app-pricing SG - deliberately open
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: !Ref TargetVpcCidr
+      Tags:
+        - Key: Name
+          Value: app-pricing-sg
+
+  OrdersSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: app-orders SG - deliberately open
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: !Ref TargetVpcCidr
+      Tags:
+        - Key: Name
+          Value: app-orders-sg
+
+  PricingIngressFromOrders:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref PricingSG
+      IpProtocol: tcp
+      FromPort: 8080
+      ToPort: 8080
+      SourceSecurityGroupId: !Ref OrdersSG
+
+  CatalogIngressFromPricing:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref CatalogSG
+      IpProtocol: tcp
+      FromPort: 8080
+      ToPort: 8080
+      SourceSecurityGroupId: !Ref PricingSG
+
+  # ================= app-catalog (no dependency) =================
+
+  CatalogInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref OldAmiId
+      KeyName: !Ref KeyName
+      SubnetId: !Ref PublicSubnetA
+      SecurityGroupIds: [!Ref CatalogSG]
+      MetadataOptions:
+        HttpTokens: optional
+        HttpEndpoint: enabled
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            Encrypted: false
+      Tags:
+        - Key: Name
+          Value: app-catalog
+        - Key: owner
+          Value: team-x
+        - Key: cost-center
+          Value: cc-1
+        - Key: data-class
+          Value: internal
+        - Key: findings
+          Value: "SG_OPEN_SSH,SG_OPEN_APP,EBS_UNENCRYPTED,IMDSV1,OLD_AMI,NO_VPC_SEGMENTATION,PUBLIC_IP"
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          cat <<'PYEOF' > /home/ec2-user/app.py
+          import http.server, json
+          APP_ID = "app-catalog"
+          class Handler(http.server.BaseHTTPRequestHandler):
+              def do_GET(self):
+                  if self.path in ("/health", "/catalog/health"):
+                      self.send_response(200); self.end_headers(); self.wfile.write(b"OK"); return
+                  body = json.dumps({"app": APP_ID, "served_by": "legacy", "version": "1.0", "upstream": None})
+                  self.send_response(200)
+                  self.send_header("Content-Type", "application/json")
+                  self.end_headers()
+                  self.wfile.write(body.encode())
+          http.server.HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
+          PYEOF
+          cat <<'EOF' > /etc/systemd/system/app.service
+          [Unit]
+          Description=legacy app
+          [Service]
+          ExecStart=/usr/bin/python3 /home/ec2-user/app.py
+          Restart=always
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          systemctl enable --now app
+
+  # ================= app-pricing (depends on catalog) =================
+
+  PricingInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref OldAmiId
+      KeyName: !Ref KeyName
+      SubnetId: !Ref PublicSubnetA
+      SecurityGroupIds: [!Ref PricingSG]
+      MetadataOptions:
+        HttpTokens: optional
+        HttpEndpoint: enabled
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            Encrypted: false
+      Tags:
+        - Key: Name
+          Value: app-pricing
+        - Key: depends-on
+          Value: app-catalog
+        - Key: findings
+          Value: "SG_OPEN_SSH,SG_OPEN_APP,EBS_UNENCRYPTED,IMDSV1,OLD_AMI,NO_VPC_SEGMENTATION,PUBLIC_IP,MISSING_TAGS"
+        # MISSING_TAGS: owner / cost-center / data-class deliberately omitted
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          cat <<'PYEOF' > /home/ec2-user/app.py
+          import http.server, json, urllib.request
+          APP_ID = "app-pricing"
+          UPSTREAM_URL = "http://${CatalogInstance.PrivateIp}:8080/"
+          class Handler(http.server.BaseHTTPRequestHandler):
+              def do_GET(self):
+                  if self.path in ("/health", "/pricing/health"):
+                      self.send_response(200); self.end_headers(); self.wfile.write(b"OK"); return
+                  upstream = None
+                  try:
+                      upstream = urllib.request.urlopen(UPSTREAM_URL, timeout=2).read().decode()
+                  except Exception:
+                      self.send_response(500); self.end_headers()
+                      self.wfile.write(b'{"error":"upstream unavailable"}'); return
+                  body = json.dumps({"app": APP_ID, "served_by": "legacy", "version": "1.0", "upstream": upstream})
+                  self.send_response(200)
+                  self.send_header("Content-Type", "application/json")
+                  self.end_headers()
+                  self.wfile.write(body.encode())
+          http.server.HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
+          PYEOF
+          cat <<'EOF' > /etc/systemd/system/app.service
+          [Unit]
+          Description=legacy app
+          [Service]
+          ExecStart=/usr/bin/python3 /home/ec2-user/app.py
+          Restart=always
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          systemctl enable --now app
+
+  # ================= app-orders (depends on pricing) =================
+
+  OrdersInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref OldAmiId
+      KeyName: !Ref KeyName
+      SubnetId: !Ref PublicSubnetA
+      SecurityGroupIds: [!Ref OrdersSG]
+      MetadataOptions:
+        HttpTokens: optional
+        HttpEndpoint: enabled
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            Encrypted: false
+      Tags:
+        - Key: Name
+          Value: app-orders
+        - Key: depends-on
+          Value: app-pricing
+        - Key: findings
+          Value: "SG_OPEN_SSH,SG_OPEN_APP,EBS_UNENCRYPTED,IMDSV1,OLD_AMI,NO_VPC_SEGMENTATION,PUBLIC_IP,MISSING_TAGS,HARDCODED_IP"
+        # MISSING_TAGS deliberately omitted
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          cat <<'PYEOF' > /home/ec2-user/app.py
+          import http.server, json, urllib.request
+          APP_ID = "app-orders"
+          UPSTREAM_URL = "http://${PricingInstance.PrivateIp}:8080/"
+          class Handler(http.server.BaseHTTPRequestHandler):
+              def do_GET(self):
+                  if self.path in ("/health", "/orders/health"):
+                      self.send_response(200); self.end_headers(); self.wfile.write(b"OK"); return
+                  upstream = None
+                  try:
+                      upstream = urllib.request.urlopen(UPSTREAM_URL, timeout=2).read().decode()
+                  except Exception:
+                      self.send_response(500); self.end_headers()
+                      self.wfile.write(b'{"error":"upstream unavailable"}'); return
+                  body = json.dumps({"app": APP_ID, "served_by": "legacy", "version": "1.0", "upstream": upstream})
+                  self.send_response(200)
+                  self.send_header("Content-Type", "application/json")
+                  self.end_headers()
+                  self.wfile.write(body.encode())
+          http.server.HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
+          PYEOF
+          cat <<'EOF' > /etc/systemd/system/app.service
+          [Unit]
+          Description=legacy app
+          [Service]
+          ExecStart=/usr/bin/python3 /home/ec2-user/app.py
+          Restart=always
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          systemctl enable --now app
+
+  # ================= SSM parameters: 2nd dependency signal =================
+
+  PricingUrlParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /legacy/app-orders/PRICING_URL
+      Type: String
+      Value: !Sub "http://${PricingInstance.PrivateIp}:8080"
+
+  CatalogUrlParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /legacy/app-pricing/CATALOG_URL
+      Type: String
+      Value: !Sub "http://${CatalogInstance.PrivateIp}:8080"
+
+Outputs:
+  VpcId:
+    Value: !Ref VPC
+  VpcHasPrivateSubnet:
+    Value: "false"
+    Description: >
+      Matches AppRecord.network.vpc_has_private_subnet in docs/CONTRACTS.md —
+      this VPC has no private-subnet tier (NO_VPC_SEGMENTATION finding).
+  PublicRouteTableId:
+    Value: !Ref PublicRouteTable
+  DiscoveryRoleArn:
+    Value: !GetAtt DiscoveryReadOnlyRole.Arn
+  CatalogPublicIp:
+    Value: !GetAtt CatalogInstance.PublicIp
+  PricingPublicIp:
+    Value: !GetAtt PricingInstance.PublicIp
+  OrdersPublicIp:
+    Value: !GetAtt OrdersInstance.PublicIp
+  CatalogPrivateIp:
+    Value: !GetAtt CatalogInstance.PrivateIp
+  PricingPrivateIp:
+    Value: !GetAtt PricingInstance.PrivateIp
+  OrdersPrivateIp:
+    Value: !GetAtt OrdersInstance.PrivateIp
