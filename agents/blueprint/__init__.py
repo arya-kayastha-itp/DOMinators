@@ -7,8 +7,8 @@ terraform, no disk writes — `dry_run_synthetic` batches BLUEPRINT_DRY_RUN
 events like Discovery batches APP_DISCOVERED.
 
 Works end to end with LLM_BACKEND=off (mapper_rules is the fallback path
-mapper_llm always has); Bedrock only makes env/tag mapping less mechanical
-once Track 4's llm.py exists.
+mapper_llm always has); with an LLM backend, Claude makes the tag and
+instance-type mapping less mechanical (port and env stay rules-pinned).
 """
 
 from __future__ import annotations

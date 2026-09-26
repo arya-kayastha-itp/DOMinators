@@ -1,0 +1,5 @@
+{
+  "tier": "GRAY",
+  "reasons": ["score sits on the GOLDEN threshold", "hardcoded provider IP needs a checked rewrite"],
+  "risk_summary": "Publicly exposed; one config rewrite should get a human look before it moves."
+}

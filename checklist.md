@@ -105,11 +105,24 @@ checks of the edge ALB._
 ## ⏳ To do
 
 ### 6. Cloud carry-over — Track 4 / C1 ([TRACK_1_CLOUD.md](docs/TRACK_1_CLOUD.md))
-- [ ] T1-1 Tag ALB listener rules + unconditioned `elasticloadbalancing:Describe*` for
-      `mig-agent-runner`; verify `modify-rule` / `describe-target-health` as that role
-- [ ] T1-2 `iam:PassRole` (on `mig-app-instance`) + `iam:GetInstanceProfile` for
-      `mig-tf-apply` — or record the decision to apply with the admin profile
+- [x] T1-1 Listener rules tagged `managed-by=migration-accelerator`; `mig-agent-runner`
+      policy split: `ModifyRule`/`ModifyListener` + EC2 mutations stay tag-conditioned,
+      `elasticloadbalancing:Describe*` + `ec2:Describe*` unconditioned (a tag condition
+      on Describe silently denies every call). Applied 0/5/0; verified as the runner:
+      `describe_rules`, `describe_target_health`, then a real `modify_rule` 10→50→100→0
+      during the live cutover (2026-09-27)
+- [x] T1-2 Decision: Terraform applies with the admin profile (`TF_APPLY_USE_PROFILE=1`
+      in `.env`) rather than granting `mig-tf-apply` `iam:PassRole`; used for the live
+      `app-catalog` apply
 - [ ] T1-3 Bedrock Claude access in `ap-south-1` confirmed with one call; `LLM_MODEL_ID` in `.env`
+      — 2026-09-27: one Converse call to `global.anthropic.claude-sonnet-4-6` (and
+      Haiku 4.5) answered, then minutes later every Claude model returned
+      *"Model use case details have not been submitted for this account"*.
+      **Blocker: someone with Account B console access submits the Anthropic
+      use-case form** (Bedrock → Model catalog → any Anthropic model), waits ~15 min,
+      then runs `LLM_LIVE=1 pytest agents/tests/test_llm.py -k live`. `claude-sonnet-5`
+      is not enabled for the account. `LLM_MODEL_ID=global.anthropic.claude-sonnet-4-6`
+      is in `.env.example`
 - [x] T1-4 `app_routes` output in `envs/target` (`path_prefix`, `priority`, `port`,
       `listener_port`, `health_path`, `runtime`); `data/target_outputs.json` re-exported
       **without a BOM** (the previous PowerShell export had one, which breaks Python's
@@ -162,9 +175,8 @@ checks of the edge ALB._
 - [x] Track 3: Blueprint passes `app_routes[app].runtime` into `golden_app` and
       handles apps with a `listener_port` (no `path_prefix`) — `mapper_rules.py`
       reads both from `target_outputs.json`, never hardcoded
-- [ ] `envs/target` listener rules: `lifecycle { ignore_changes = [action] }` (or
-      equivalent), otherwise the next `terraform apply` resets Cutover's weights to
-      100/0 and silently undoes a migration
+- [x] `edge_alb` listener rules: `lifecycle { ignore_changes = [action] }`, so a later
+      `terraform apply` can't silently reset Cutover's weights and undo a migration
 - [ ] Decide on AMI churn: golden_app reads "latest AL2023", so any apply after AWS
       publishes a new AMI replaces running golden instances (e.g. `ignore_changes =
       [ami]`, or pin per wave)
@@ -206,9 +218,10 @@ checks of the edge ALB._
       `blueprint_app-orders.json` the same way; `cutover_*.json` /
       `traffic_app-orders.json` reviewed and left as-is — still a faithful,
       schema-valid example of a `ROLLED_BACK` run
-- [ ] Re-record `fixtures/aws/` and extend `fixtures/apps.json` etc. with
-      `app-juice-shop` / `app-gitea` / `app-vaultwarden` once Account A testing finishes
-      (all live, but deliberately left out of the fixtures while they're being tested)
+- [x] `fixtures/aws/` re-recorded with all 6 real apps; `apps` / `tiers` / `edges` /
+      `summary` / `plan` rebuilt by `scripts/build_fixtures.py` (real Discovery +
+      Planning over the recording, pinned clock) — 4 GOLDEN, 2 RED, Wave 0 = catalog →
+      pricing → orders → juice-shop; oracle test matches all 6 `findings` tags
 
 ### 8. Shared framework
 - [x] T2-FW-1 `store.py` implemented + tests (idempotent upserts, `set_status`,
@@ -229,10 +242,18 @@ checks of the edge ALB._
       PEM (verification still on). Worth checking whether endpoint security causes it.
       Also: a venv inside OneDrive makes botocore's file reads very slow — use one outside
       it (`%LOCALAPPDATA%\dominators-venv`: real Discovery 52 s → 20 s)
-- [ ] T4-L-1 `llm.py` (bedrock / anthropic / off / mock, 20 s timeout) (C1)
+- [x] T4-L-1 `llm.py` (bedrock / anthropic / off / mock, 20 s timeout) — written by
+      A2 to unblock the LLM hooks: `call_tool(system, user, tool)` / `complete(...)`,
+      Bedrock via boto3's Converse API (no `anthropic` SDK needed; pip can't reach
+      PyPI on the A2 laptop), `AWS_BEARER_TOKEN_BEDROCK` honoured, `anthropic`
+      backend imports the SDK lazily. Tested offline (mock + fake Converse client);
+      the live Bedrock path waits on T1-3
 - [ ] T4-L-2 `tools.py` (registry, validation, allowlist guard) (C1)
 - [ ] T4-L-3 `loop.py` (`TOOL_CALL` / `LLM_FALLBACK` events) (C1)
-- [ ] T4-L-4 LLM plumbing tests + one live Bedrock smoke test (C1)
+- [ ] T4-L-4 LLM plumbing tests + one live Bedrock smoke test (C1) — `test_llm.py`:
+      12 offline tests pass (backends, forced tool choice, all 4 hooks on `mock`,
+      mapper fallback). The live test (`LLM_LIVE=1`) fails on T1-3's use-case form.
+      `conftest.py` now forces `LLM_BACKEND=off` so `.env` can't send the suite to Bedrock
 
 ### 9. Discovery — Track 2 / A1
 - [x] T2-D-1 `scanner.py` on recorded responses (`IncludeDeprecated=True`, paginated,
@@ -246,7 +267,9 @@ checks of the edge ALB._
       real edges `orders → pricing → catalog`, each with all 3 signals
 - [x] T2-D-5 `tiering.py` rules (non-EC2 runtime → GRAY per D2; commercial → RED)
 - [ ] T2-D-5 borderline → Claude via `submit_tiering` (hook written, max 8 concurrent,
-      rules on any failure) — untested until Track 4's `llm.py` exists
+      rules on any failure) — mock-tested (borderline apps → `decided_by=llm`, RED
+      never asked); 20 of 1,006 apps are borderline, so ~20 calls per full run.
+      Live run waits on T1-3
 - [x] T2-D-6 `synthetic.py`: `fleet.json` through the same rules → deps → tiering
       (1,000 apps < 3 s rules-only)
 - [x] T2-D-7 `run(scope)` + CLI `python -m agents.discovery`; events incl.
@@ -266,7 +289,9 @@ checks of the edge ALB._
       Wave 0 = real apps not parked; 3/week on Mon/Wed/Fri skipping 15 Dec – 5 Jan;
       projection
 - [x] T2-P-5 Template rationale per wave
-- [ ] T2-P-5 Optional LLM rationale — waits for Track 4's `llm.py`
+- [ ] T2-P-5 Optional LLM rationale — `planning.run()` asks Claude to rewrite the
+      pilot wave's rationale only (one call; template + `LLM_FALLBACK` on failure;
+      membership/order never from the model). Mock-tested; live waits on T1-3
 - [x] T2-P-6 `run()` + CLI `python -m agents.planning`; `PLAN_DONE`; statuses →
       `PLANNED` / `PARKED`; errors loudly if Discovery hasn't run. Live: 1,006 apps →
       29 waves, 155 parked, finish 2026-12-02
@@ -278,7 +303,23 @@ checks of the edge ALB._
 - [x] T2-F-3 Tuned to 59.6 / 25.1 / 15.3 (runtime mix → 70/20/10, commercial → 2%);
       sanity checks printed and enforced; `data/fleet.json` committed
 - [x] T2-I-1 `STATUS.md` created (Working / Broken / Next)
-- [ ] T2-I-3 `scripts/e2e_real.sh`
+- [x] T2-I-3 `scripts/e2e_real.sh` — **passed live** for `app-catalog` (2026-09-27):
+      Discovery (6 real + 1,000) → Planning → Blueprint `terraform apply`
+      (`i-0f3e1e4f37dc02f57`, healthy) → Cutover 10/50/100 on real traffic (target
+      share 0.097 / 0.50 / 1.0, 0% errors, p95 ~100–120 ms) → `MIGRATED`; then
+      `--restore` put `/catalog` back on 100% legacy (verified 10/10 `legacy`). Runs its
+      own traffic generator (outside the orchestrator nothing produces samples);
+      `--cutover-only` for retries
+- [x] Test leftovers removed so the demo starts from legacy (2026-09-27): golden
+      `app-catalog` instance `i-0f3e1e4f37dc02f57` + its target-group attachment
+      destroyed (`terraform destroy`, 2 resources); every rule verified 100/0 legacy;
+      local `data/state.db` and `generated/app-catalog` deleted. Account B now runs
+      only `app-hello` plus the base infra
+- [ ] T2-D-5 / T2-P-5 LLM paths tested on `mock` only — live Bedrock run waits on
+      T1-3 (Anthropic use-case form in Account B)
+- [ ] Nothing in `blueprint.run` / `cutover.run` refuses a RED/parked app: only
+      Planning parks Gitea/Vaultwarden, so a direct CLI call would still try. The
+      orchestrator's lifecycle check (T4-O-5) must reject it; Track 3 may add a guard too
 
 ### 11. Blueprint/IaC — Track 3 / A3
 - [x] T3-B-1 `GoldenInputs` schema (no IP literals in `env`) — `schema.py`:
@@ -290,10 +331,12 @@ checks of the edge ALB._
       G0 fixture, wiring only from `target_outputs.json`
 - [ ] T3-B-3 LLM mapper via `loop.py` with fallback — `mapper_llm.py` has the
       tool schemas (`set_golden_inputs`, `flag_gap`, `lookup_target_endpoint`)
-      and the retry-once/`LLM_FALLBACK` wiring, same status as Track 2's
-      borderline-tiering hook: untested until Track 4's `llm.py` (T4-L-1) exists.
-      `_llm_available()` is always false today, so `mapper_rules` is what
-      actually runs
+      and the retry-once/`LLM_FALLBACK` wiring. Now runs through `llm.call_tool`
+      (single-shot, so `lookup_target_endpoint` isn't wired): the model starts from
+      the rules mapping and **`port` and `env` stay pinned to the rules values**
+      (A2 change — an invented `UPSTREAM_URL` passes validation but breaks a real
+      apply); Claude picks instance type, tags and gaps. Mock-tested incl. the
+      fallback; live waits on T1-3. Track 3 to review
 - [x] T3-B-4 `templates/main.tf.j2` → `generated/<app>/main.tf` (wiring only from
       `target_outputs.json`) — one template for real applies and local
       dry-run validates alike (`-backend=false` skips the backend block
@@ -323,9 +366,8 @@ checks of the edge ALB._
       `upsert_apps()` for the status change, same trick Discovery uses
 - [x] T3-B-11 `run()` + CLI — `python -m agents.blueprint --app app-catalog
       [--apply]`; statuses `BLUEPRINTED` → `PROVISIONED` / `FAILED`
-- [ ] `app-catalog` applied + healthy in `tg-app-catalog-target` — needs a real
-      `terraform` binary + Account B credentials, neither available on this
-      dev machine; blocked on T1-2 either way
+- [x] `app-catalog` applied + healthy in `tg-app-catalog-target` — done live from the
+      Account B owner's machine via `scripts/e2e_real.sh` (T1-2 = admin profile), 2026-09-27
 - [ ] `app-pricing` applied + healthy — same blocker
 - [ ] `app-orders` applied (bad variant) + healthy on `/health` — same blocker
 
@@ -360,8 +402,8 @@ checks of the edge ALB._
       that resets stale weights is Track 4's orchestrator (T4-O-9), not built here
 - [ ] T3-C-8 LLM explainer (template fallback) — `explainer.py`; template path
       implemented and tested (matches the fixture's tone: *"All gates passed
-      at 10%, 50%, 100%; traffic followed the weights."*), same
-      untested-until-`llm.py` status as the other LLM hooks
+      at 10%, 50%, 100%; traffic followed the weights."*); LLM path mock-tested
+      via `llm.complete`, live waits on T1-3
 - [x] T3-C-9 Synthetic wave simulation (~3% seeded rollbacks) — `simulate.py`;
       deterministic per `app_id` (seeded PRNG), 1,000-app wave in **1.4s**
       after batching events (`emit_batch_leveled`, new additive function —
@@ -373,9 +415,14 @@ checks of the edge ALB._
       `.gitignore`'s blanket `config.yaml` credential pattern needed a
       `!agents/cutover/config.yaml` exception (same style as the existing
       `envs/target` one) — it's gate thresholds, not secrets
-- [ ] Clean real cutover of `app-catalog` in 60–90 s — verified against the
-      **fake** ALB (weights follow correctly, traffic share tracks the
-      weight); the real ALB needs T1-1 and wasn't available here
+- [x] Clean real cutover of `app-catalog` against the **real** ALB: MIGRATED, all gates
+      passed (2026-09-27). Took ~110 s, not 60–90 s: the real ALB needs ~12 s to apply a
+      new weight, so `config.yaml` was tuned to `settle_s` 15 / `observe_window_s` 35 /
+      `min_target_share_ratio` 0.6 (the first live run at `settle_s` 2 rolled back with
+      target share 0.03), and `cutover.run()` now reads `observe_window_s` from config
+      when not passed, capping settle at half the window
+- [ ] Track 3 to review the gate tuning above and decide whether to trade the 60–90 s
+      target for it (e.g. shorter window at 50/100%, where noise isn't an issue)
 - [ ] Bad wave on `app-orders` rolls back automatically — verified 3× against
       the fake ALB's bad-target variant (rolls back at 10% every time, weights
       restored); not yet re-run against the real ALB/Account B

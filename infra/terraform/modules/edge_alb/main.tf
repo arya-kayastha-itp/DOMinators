@@ -143,4 +143,13 @@ resource "aws_lb_listener_rule" "this" {
       }
     }
   }
+
+  # mig-agent-runner may only modify resources tagged managed-by=migration-accelerator.
+  tags = var.tags
+
+  # Cutover owns the weights after creation; without this, any later apply
+  # here would silently reset a finished migration back to 100/0.
+  lifecycle {
+    ignore_changes = [action]
+  }
 }

@@ -1,0 +1,7 @@
+{
+  "port": 8080,
+  "instance_type": "t3.micro",
+  "env": {},
+  "tags": {"owner": "team-commerce", "cost-center": "cc-retail", "data-class": "internal"},
+  "gaps": [{"field": "cost-center", "note": "inferred from business_unit Retail; confirm with finance"}]
+}

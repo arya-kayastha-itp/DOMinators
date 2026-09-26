@@ -36,9 +36,10 @@ data "aws_iam_policy_document" "agent_runner_permissions" {
     resources = ["*"]
   }
 
+  # Mutations stay limited to resources tagged managed-by=migration-accelerator.
   statement {
-    sid       = "ElbTagged"
-    actions   = ["elasticloadbalancing:ModifyRule", "elasticloadbalancing:ModifyListener", "elasticloadbalancing:DescribeRules", "elasticloadbalancing:DescribeTargetHealth"]
+    sid       = "ElbModifyTagged"
+    actions   = ["elasticloadbalancing:ModifyRule", "elasticloadbalancing:ModifyListener"]
     resources = ["*"]
     condition {
       test     = "StringEquals"
@@ -49,13 +50,21 @@ data "aws_iam_policy_document" "agent_runner_permissions" {
 
   statement {
     sid       = "Ec2Tagged"
-    actions   = ["ec2:RunInstances", "ec2:TerminateInstances", "ec2:CreateTags", "ec2:Describe*"]
+    actions   = ["ec2:RunInstances", "ec2:TerminateInstances", "ec2:CreateTags"]
     resources = ["*"]
     condition {
       test     = "StringEquals"
       variable = "aws:ResourceTag/managed-by"
       values   = ["migration-accelerator"]
     }
+  }
+
+  # Describe calls don't support resource-level tag conditions, so a tag
+  # condition on them silently denies every call. Read-only, so unconditioned.
+  statement {
+    sid       = "ReadOnlyDescribe"
+    actions   = ["elasticloadbalancing:Describe*", "ec2:Describe*"]
+    resources = ["*"]
   }
 
   statement {

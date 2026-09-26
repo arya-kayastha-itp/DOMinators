@@ -2,10 +2,10 @@
 
 Same status as Track 2's borderline-tiering hook (agents/discovery/tiering.py
 `_llm_tier`): the tool schema and the fallback wiring live here and
-`agents.blueprint.run` calls them unconditionally, but `_llm_available()` is
-always False until Track 4 ships `agents/common/llm.py` (T4-L-1), so this is
-untested beyond the fallback path. `LLM_BACKEND=off` (the default) must
-produce a usable, schema-valid result on its own — that's the demo safety net.
+`agents.blueprint.run` calls them unconditionally; `_llm_available()` is true
+once LLM_BACKEND is `bedrock`/`anthropic`/`mock` (agents/common/llm.py).
+`LLM_BACKEND=off` (the default) must produce a usable, schema-valid result on
+its own — that's the demo safety net.
 """
 
 from __future__ import annotations
@@ -58,10 +58,10 @@ TOOLS = [SET_GOLDEN_INPUTS, FLAG_GAP, LOOKUP_TARGET_ENDPOINT]
 
 SYSTEM = (
     "You map one legacy app record onto the golden_app Terraform module's inputs. "
-    "Use lookup_target_endpoint to translate a dependency app_id into its target-side URL "
-    "(UPSTREAM_URL + REQUIRE_UPSTREAM=1). Never leave a legacy IP literal in an env value. "
-    "Call flag_gap for anything you couldn't determine and had to default, "
-    "then call set_golden_inputs exactly once."
+    "You get a deterministic rules mapping to start from: keep its port and env exactly, "
+    "never put a legacy IP literal anywhere. Choose instance_type from the allowed values, "
+    "fill the owner, cost-center and data-class tags from whatever the legacy record implies, "
+    "and list every value you had to default or guess in gaps. Call set_golden_inputs once."
 )
 
 
@@ -75,17 +75,26 @@ def _llm_available() -> bool:
     return True
 
 
-def _llm_map(app: AppRecord, runtime: str) -> tuple[GoldenInputs, list[Gap]]:
-    """Retry once on a validation error, then let the caller fall back to rules."""
+def _llm_map(app: AppRecord, rules: GoldenInputs) -> tuple[GoldenInputs, list[Gap]]:
+    """Retry once on a validation error, then let the caller fall back to rules.
+
+    The model starts from the rules mapping and may change instance_type, tags
+    and gaps. `port` and `env` stay pinned to the rules values: the model never
+    sees the ALB DNS name or the provider paths (call_tool is single-shot, so
+    lookup_target_endpoint isn't wired), and an invented UPSTREAM_URL or port
+    would pass validation yet break the app on a real apply."""
     from agents.common import events, llm
 
-    user = app.model_dump_json()
+    user = (f"Legacy record:\n{app.model_dump_json()}\n\n"
+            f"Rules mapping (port and env are fixed; improve instance_type, tags and gaps):\n"
+            f"{rules.model_dump_json(exclude={'name', 'runtime'})}")
     last_error: Exception | None = None
     for attempt in range(2):
         try:
             out = dict(llm.call_tool(SYSTEM, user, SET_GOLDEN_INPUTS))
             gaps = [Gap.model_validate(g) for g in out.pop("gaps", [])]
-            inputs = GoldenInputs(name=app.app_id, runtime=runtime, **out)
+            out.update(port=rules.port, env=dict(rules.env))
+            inputs = GoldenInputs(name=app.app_id, runtime=rules.runtime, **out)
             schema.validate(inputs)
             return inputs, gaps
         except Exception as exc:  # noqa: BLE001 - any failure means "fall back to rules"
@@ -100,7 +109,7 @@ def map_app(app: AppRecord) -> tuple[GoldenInputs, list[Gap], bool]:
     if not _llm_available():
         return rules_inputs, rules_gaps, False
     try:
-        inputs, gaps = _llm_map(app, rules_inputs.runtime)
+        inputs, gaps = _llm_map(app, rules_inputs)
         return inputs, gaps, True
     except Exception:  # noqa: BLE001 - LLM_FALLBACK already emitted in _llm_map
         return rules_inputs, rules_gaps, False

@@ -1,11 +1,10 @@
 """Post-decision explainer (T3-C-8). The rollback decision is already final
 by the time this runs — it only ever writes the sentence.
 
-Same status as every other LLM hook in this repo (agents/discovery/tiering.py
-`_llm_tier`, agents/blueprint/mapper_llm.py): `_llm_available()` is False
-until Track 4 ships `agents/common/llm.py` (T4-L-1), so only the template
-path is exercised today. The template has to read fine on its own, since
-that's what actually runs with `LLM_BACKEND=off`.
+Same wiring as every other LLM hook in this repo (agents/discovery/tiering.py
+`_llm_tier`, agents/blueprint/mapper_llm.py): `llm.complete` when LLM_BACKEND
+is set, the template otherwise. The template has to read fine on its own,
+since that's what actually runs with `LLM_BACKEND=off`.
 """
 
 from __future__ import annotations

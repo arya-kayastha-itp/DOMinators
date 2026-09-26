@@ -1,22 +1,23 @@
 {
-  "apps_total": 3,
-  "real": 3,
+  "apps_total": 6,
+  "real": 6,
   "synthetic": 0,
   "tiers": {
-    "GOLDEN": 3,
+    "GOLDEN": 4,
     "GRAY": 0,
-    "RED": 0
+    "RED": 2
   },
   "findings": {
-    "SG_OPEN_SSH": 3,
-    "SG_OPEN_APP": 3,
-    "EBS_UNENCRYPTED": 3,
-    "IMDSV1": 3,
-    "OLD_AMI": 3,
-    "NO_VPC_SEGMENTATION": 3,
-    "PUBLIC_IP": 3,
+    "EBS_UNENCRYPTED": 6,
+    "HARDCODED_IP": 2,
+    "IMDSV1": 6,
     "MISSING_TAGS": 2,
-    "HARDCODED_IP": 2
+    "NO_VPC_SEGMENTATION": 6,
+    "OLD_AMI": 6,
+    "PUBLIC_IP": 6,
+    "SG_OPEN_APP": 6,
+    "SG_OPEN_SSH": 6,
+    "STATEFUL": 2
   },
   "edges": 2,
   "llm_decisions": 0,

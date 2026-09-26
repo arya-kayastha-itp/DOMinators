@@ -8,20 +8,30 @@
       "matches golden_app pattern",
       "all findings auto-fixable"
     ],
-    "risk_summary": "Publicly exposed with SSH open to the world; every fix is standard and automatable.",
+    "risk_summary": "Publicly exposed, ssh open to the world; 7 findings, every fix is standard and automatable.",
     "decided_by": "rules"
   },
   {
-    "app_id": "app-pricing",
+    "app_id": "app-gitea",
+    "tier": "RED",
+    "score": 30,
+    "reasons": [
+      "stateful: data needs a migration plan (-60)",
+      "STATEFUL has no automatic fix (-10)"
+    ],
+    "risk_summary": "Publicly exposed, ssh open to the world; stateful \u2014 needs a data migration plan, so it's parked.",
+    "decided_by": "rules"
+  },
+  {
+    "app_id": "app-juice-shop",
     "tier": "GOLDEN",
-    "score": 90,
+    "score": 100,
     "reasons": [
       "stateless",
       "matches golden_app pattern",
-      "hardcoded IP in config (-10)",
-      "missing business tags: auto-fixed with flagged gaps"
+      "all findings auto-fixable"
     ],
-    "risk_summary": "Publicly exposed; its catalog endpoint is a hardcoded IP that Blueprint rewrites to the ALB.",
+    "risk_summary": "Publicly exposed, ssh open to the world; 7 findings, every fix is standard and automatable.",
     "decided_by": "rules"
   },
   {
@@ -31,10 +41,36 @@
     "reasons": [
       "stateless",
       "matches golden_app pattern",
+      "all findings auto-fixable",
       "hardcoded IP in config (-10)",
       "missing business tags: auto-fixed with flagged gaps"
     ],
-    "risk_summary": "Publicly exposed; its pricing endpoint is a hardcoded IP that Blueprint rewrites to the ALB.",
+    "risk_summary": "Publicly exposed, ssh open to the world; 9 findings, every fix is standard and automatable.",
+    "decided_by": "rules"
+  },
+  {
+    "app_id": "app-pricing",
+    "tier": "GOLDEN",
+    "score": 90,
+    "reasons": [
+      "stateless",
+      "matches golden_app pattern",
+      "all findings auto-fixable",
+      "hardcoded IP in config (-10)",
+      "missing business tags: auto-fixed with flagged gaps"
+    ],
+    "risk_summary": "Publicly exposed, ssh open to the world; 9 findings, every fix is standard and automatable.",
+    "decided_by": "rules"
+  },
+  {
+    "app_id": "app-vaultwarden",
+    "tier": "RED",
+    "score": 30,
+    "reasons": [
+      "stateful: data needs a migration plan (-60)",
+      "STATEFUL has no automatic fix (-10)"
+    ],
+    "risk_summary": "Publicly exposed, ssh open to the world; stateful \u2014 needs a data migration plan, so it's parked.",
     "decided_by": "rules"
   }
 ]
