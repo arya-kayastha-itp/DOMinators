@@ -34,8 +34,13 @@ deployed, a stack update from it could silently change existing resources.
 ### 1.2 Add these 4 resources under `Resources:` (after `OrdersInstance`)
 
 They copy the existing `CatalogSG` / `CatalogInstance` pattern exactly: old
-Amazon Linux 2 AMI, IMDSv1, unencrypted gp2, public subnet, open SGs. The AMI is
-Amazon Linux 2, which is why Docker comes from `amazon-linux-extras`, not `dnf`.
+AMI, IMDSv1, unencrypted gp2, public subnet, open SGs. **Correction (found live
+2026-09-26):** despite the `OldAmiId` parameter's description, the deployed
+legacy AMI is actually AL2023, not true Amazon Linux 2 (`checklist.md` /
+`TRACK_1_CLOUD.md` already noted this — the first version of this doc missed
+it). `amazon-linux-extras` doesn't exist on AL2023, so it failed silently in
+`cloud-init` (`command not found`) and Docker never installed. Use `dnf
+install -y docker` instead, which is what the snippets below now show.
 
 ```yaml
   # ================= app-juice-shop (real app, stateless -> Golden) =================
@@ -92,7 +97,7 @@ Amazon Linux 2, which is why Docker comes from `amazon-linux-extras`, not `dnf`.
       UserData:
         Fn::Base64: |
           #!/bin/bash
-          amazon-linux-extras install -y docker
+          dnf install -y docker
           systemctl enable --now docker
           docker run -d --name app-juice-shop --restart always -p 8080:3000 bkimminich/juice-shop:v20.2.0
 
@@ -148,7 +153,7 @@ Amazon Linux 2, which is why Docker comes from `amazon-linux-extras`, not `dnf`.
       UserData:
         Fn::Base64: |
           #!/bin/bash
-          amazon-linux-extras install -y docker
+          dnf install -y docker
           systemctl enable --now docker
           mkdir -p /opt/gitea
           docker run -d --name app-gitea --restart always -p 8080:3000 \

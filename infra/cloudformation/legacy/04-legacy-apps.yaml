@@ -348,7 +348,7 @@ Resources:
       UserData:
         Fn::Base64: |
           #!/bin/bash
-          amazon-linux-extras install -y docker
+          dnf install -y docker
           systemctl enable --now docker
           docker run -d --name app-juice-shop --restart always -p 8080:3000 bkimminich/juice-shop:v20.2.0
 
@@ -404,13 +404,70 @@ Resources:
       UserData:
         Fn::Base64: |
           #!/bin/bash
-          amazon-linux-extras install -y docker
+          dnf install -y docker
           systemctl enable --now docker
           mkdir -p /opt/gitea
           docker run -d --name app-gitea --restart always -p 8080:3000 \
             -e GITEA__security__INSTALL_LOCK=true \
             -e GITEA__database__DB_TYPE=sqlite3 \
             -v /opt/gitea:/data gitea/gitea:1.27.3
+
+  # ---------- app-vaultwarden (real app, stateful -> Red, parked) ----------
+
+  VaultwardenSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: app-vaultwarden SG - deliberately open
+      VpcId: !ImportValue
+        Fn::Sub: "${EnvName}-vpc-id"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: app-vaultwarden-sg
+
+  VaultwardenInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref OldAmiId
+      KeyName: !Ref KeyName
+      SubnetId: !ImportValue
+        Fn::Sub: "${EnvName}-public-subnet-a"
+      SecurityGroupIds: [!Ref VaultwardenSG]
+      MetadataOptions:
+        HttpTokens: optional
+        HttpEndpoint: enabled
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            Encrypted: false
+      Tags:
+        - Key: Name
+          Value: app-vaultwarden
+        - Key: owner
+          Value: team-x
+        - Key: cost-center
+          Value: cc-1
+        - Key: data-class
+          Value: internal
+        - Key: stateful
+          Value: "true"
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          dnf install -y docker
+          systemctl enable --now docker
+          mkdir -p /opt/vaultwarden
+          docker run -d --name app-vaultwarden --restart always -p 8080:80 -v /opt/vaultwarden:/data vaultwarden/server:latest
 
   # ---------- SSM parameters: 2nd dependency signal ----------
 
@@ -445,3 +502,5 @@ Outputs:
     Value: !GetAtt JuiceShopInstance.PrivateIp
   GiteaPrivateIp:
     Value: !GetAtt GiteaInstance.PrivateIp
+  VaultwardenPrivateIp:
+    Value: !GetAtt VaultwardenInstance.PrivateIp
