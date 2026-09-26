@@ -146,11 +146,13 @@ checks of the edge ALB._
       exact pattern: stateful (embedded SQLite on `/opt/vaultwarden`), tagged
       `stateful=true`, no `TargetVpcCidr` ingress (Red tier, parked, never
       migrates, no Account B work needed)
-- [ ] Change set applied to `mig-legacy-all` for `VaultwardenSG`/`VaultwardenInstance`
-      — expect exactly 2 `Add` rows, `PeeringConnectionId` left blank — and
-      verified reachable (`curl :8080/alive` → 200). Given the unresolved
-      UserData-not-executing issue above, be ready to install Docker + run the
-      container by hand via EC2 Instance Connect if it doesn't come up on its own
+- [x] Change set applied to `mig-legacy-all` for `VaultwardenSG`/`VaultwardenInstance`
+      — exactly 2 `Add` rows, `PeeringConnectionId` left blank, `UPDATE_COMPLETE`
+      reached. This time `UserData` **did** execute on its own (Docker and the
+      container were already up before any manual command ran) — the earlier
+      no-`scripts-user`-invocation issue on Juice Shop/Gitea's replacement launch
+      looks like it was a one-off, not systemic. Verified: `curl :8080/alive` →
+      `200` (local and external) (2026-09-26)
 - [ ] Legacy Juice Shop IP registered in `tg-app-juice-shop-legacy`
       (`AvailabilityZone=all`); `curl <alb>:3000/` → 200 via peering
 - [ ] Track 2: Wave 0 / expected-findings tests updated for the 3 new apps
