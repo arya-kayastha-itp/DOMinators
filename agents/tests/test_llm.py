@@ -59,7 +59,7 @@ def test_bedrock_forces_the_tool_and_returns_its_input(monkeypatch):
 
     monkeypatch.setenv("LLM_BACKEND", "bedrock")
     monkeypatch.setenv("LLM_MODEL_ID", "global.anthropic.claude-sonnet-4-6")
-    monkeypatch.setattr(llm, "_bedrock", lambda: FakeRuntime())
+    monkeypatch.setattr(llm, "_bedrock_client", lambda: FakeRuntime())
     out = llm.call_tool("sys", "user", {"name": "submit_tiering", "description": "d", "input_schema": {"type": "object"}})
     assert out == {"tier": "RED"}
     assert seen["modelId"] == "global.anthropic.claude-sonnet-4-6"
@@ -73,7 +73,7 @@ def test_bedrock_without_a_tool_call_is_an_error(monkeypatch):
 
     monkeypatch.setenv("LLM_BACKEND", "bedrock")
     monkeypatch.setenv("LLM_MODEL_ID", "m")
-    monkeypatch.setattr(llm, "_bedrock", lambda: FakeRuntime())
+    monkeypatch.setattr(llm, "_bedrock_client", lambda: FakeRuntime())
     with pytest.raises(llm.LLMError):
         llm.call_tool("s", "u", {"name": "submit_tiering", "input_schema": {}})
 
@@ -85,6 +85,94 @@ def test_bedrock_needs_a_model_id(monkeypatch):
         llm.complete("s", "u")
 
 
+TOOL = {"name": "submit_tiering", "description": "d", "input_schema": {"type": "object"}}
+
+
+@pytest.fixture
+def watsonx_env(monkeypatch):
+    monkeypatch.setenv("LLM_BACKEND", "watsonx")
+    monkeypatch.setenv("WATSONX_API_KEY", "k")
+    monkeypatch.setenv("WATSONX_URL", "https://eu-de.ml.cloud.ibm.com")
+    monkeypatch.setenv("WATSONX_PROJECT_ID", "p")
+    monkeypatch.setenv("WATSONX_MODEL_ID", "ibm/granite-4-h-small")
+    monkeypatch.setenv("GEMINI_API_KEY", "")
+    monkeypatch.setattr(llm, "_ibm_token", {})
+
+
+def _fake_post(responses, calls):
+    def post(url, *, json_body=None, form=None, headers=None):
+        calls.append((url, json_body, form, headers))
+        for host, answer in responses.items():
+            if host in url:
+                if isinstance(answer, Exception):
+                    raise answer
+                return answer
+        raise AssertionError(url)
+    return post
+
+
+def test_watsonx_gets_an_iam_token_then_forces_the_tool(watsonx_env, monkeypatch):
+    calls = []
+    monkeypatch.setattr(llm, "_post", _fake_post({
+        "iam.cloud.ibm.com": {"access_token": "tok", "expiration": 9_999_999_999},
+        "ml.cloud.ibm.com": {"choices": [{"message": {"tool_calls": [
+            {"function": {"name": "submit_tiering", "arguments": '{"tier": "GRAY"}'}}]}}]},
+    }, calls))
+    assert llm.call_tool("s", "u", TOOL) == {"tier": "GRAY"}
+    llm.call_tool("s", "u", TOOL)  # token is cached: one IAM call for two chats
+    assert sum("iam" in c[0] for c in calls) == 1
+    url, body, _, headers = calls[1]
+    assert "/ml/v1/text/chat?version=" in url and headers["Authorization"] == "Bearer tok"
+    assert body["model_id"] == "ibm/granite-4-h-small" and body["project_id"] == "p"
+    assert body["tool_choice"] == {"type": "function", "function": {"name": "submit_tiering"}}
+
+
+def test_watsonx_accepts_json_content_instead_of_a_tool_call(watsonx_env, monkeypatch):
+    monkeypatch.setattr(llm, "_post", _fake_post({
+        "iam.cloud.ibm.com": {"access_token": "tok"},
+        "ml.cloud.ibm.com": {"choices": [{"message": {"content": '```json\n{"tier": "RED"}\n```'}}]},
+    }, []))
+    assert llm.call_tool("s", "u", TOOL) == {"tier": "RED"}
+
+
+def test_watsonx_falls_back_to_gemini_when_configured(watsonx_env, monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "g")
+    calls = []
+    monkeypatch.setattr(llm, "_post", _fake_post({
+        "iam.cloud.ibm.com": llm.LLMError("HTTP 401"),
+        "generativelanguage": {"candidates": [{"content": {"parts": [
+            {"thought": True, "text": "thinking"}, {"text": "Gemini says hi."}]}}]},
+    }, calls))
+    assert llm.complete("s", "u") == "Gemini says hi."
+    assert calls[-1][3]["x-goog-api-key"] == "g"
+
+
+def test_watsonx_without_gemini_raises_so_callers_use_rules(watsonx_env, monkeypatch):
+    monkeypatch.setattr(llm, "_post", _fake_post({"iam.cloud.ibm.com": llm.LLMError("HTTP 401")}, []))
+    with pytest.raises(llm.LLMError):
+        llm.complete("s", "u")
+
+
+def test_watsonx_unconfigured_is_llmoff(monkeypatch):
+    monkeypatch.setenv("LLM_BACKEND", "watsonx")
+    monkeypatch.setenv("WATSONX_URL", "")
+    monkeypatch.setenv("GEMINI_API_KEY", "")
+    with pytest.raises(llm.LLMOff):
+        llm.complete("s", "u")
+
+
+def test_gemini_forces_the_function_call(monkeypatch):
+    monkeypatch.setenv("LLM_BACKEND", "gemini")
+    monkeypatch.setenv("GEMINI_API_KEY", "g")
+    calls = []
+    monkeypatch.setattr(llm, "_post", _fake_post({"generativelanguage": {"candidates": [{"content": {"parts": [
+        {"functionCall": {"name": "submit_tiering", "args": {"tier": "GOLDEN"}}}]}}]}}, calls))
+    assert llm.call_tool("s", "u", TOOL) == {"tier": "GOLDEN"}
+    body = calls[0][1]
+    assert body["toolConfig"]["functionCallingConfig"] == {"mode": "ANY", "allowedFunctionNames": ["submit_tiering"]}
+    assert body["tools"][0]["functionDeclarations"][0]["parametersJsonSchema"] == {"type": "object"}
+
+
 # ---------------------------------------------------------------- hooks
 
 
@@ -94,6 +182,62 @@ def test_borderline_tiering_goes_to_the_llm(mock, monkeypatch):
     assert tiers["app-orders"].decided_by == DecidedBy.LLM and tiers["app-orders"].tier == Tier.GRAY
     assert tiers["app-catalog"].decided_by == DecidedBy.RULES  # 100: not borderline
     assert tiers["app-gitea"].decided_by == DecidedBy.RULES and tiers["app-gitea"].tier == Tier.RED  # RED never asked
+
+
+def test_llm_tier_outside_the_two_adjacent_tiers_keeps_rules(mock, tmp_path, monkeypatch):
+    (tmp_path / "submit_tiering.json").write_text(json.dumps({"tier": "RED", "reasons": [], "risk_summary": "x"}))
+    monkeypatch.setattr(llm, "MOCK_DIR", tmp_path)
+    app = _app("app-orders")
+    rules_t = tiering.rules_tier(app, 1).model_copy(update={"score": 76})  # near 75: GOLDEN or GRAY only
+    assert tiering._llm_tier(app, rules_t) == rules_t
+
+
+def test_llm_tiering_is_capped_real_apps_first(mock, monkeypatch):
+    monkeypatch.setattr(tiering, "BORDERLINE", 100)  # everything non-RED is borderline
+    monkeypatch.setattr(tiering, "MAX_LLM_TIER_CALLS", 2)
+    asked = []
+    monkeypatch.setattr(tiering, "_llm_tier", lambda a, t: asked.append(a.app_id) or t)
+    base = _app("app-catalog")
+    syn = [base.model_copy(update={"app_id": f"syn-{i}", "source": "synthetic"}) for i in range(3)]
+    tiering.tier_all(syn + fixtures.apps(), [])
+    assert len(asked) == 2 and all(not a.startswith("syn-") for a in asked)
+
+
+def test_gemini_retries_once_when_busy(monkeypatch):
+    monkeypatch.setenv("LLM_BACKEND", "gemini")
+    monkeypatch.setenv("GEMINI_API_KEY", "g")
+    monkeypatch.setattr(llm.time, "sleep", lambda s: None)
+    answers = [llm.LLMError("HTTP 429", status=429), {"candidates": [{"content": {"parts": [{"text": "ok"}]}}]}]
+
+    def post(url, **kw):
+        a = answers.pop(0)
+        if isinstance(a, Exception):
+            raise a
+        return a
+
+    monkeypatch.setattr(llm, "_post", post)
+    assert llm.complete("s", "u") == "ok"
+
+
+def test_gemini_does_not_retry_a_real_error(monkeypatch):
+    monkeypatch.setenv("LLM_BACKEND", "gemini")
+    monkeypatch.setenv("GEMINI_API_KEY", "g")
+    calls = []
+    monkeypatch.setattr(llm, "_post", _fake_post({"generativelanguage": llm.LLMError("HTTP 400", status=400)}, calls))
+    with pytest.raises(llm.LLMError):
+        llm.complete("s", "u")
+    assert len(calls) == 1
+
+
+def test_gemini_thinking_level_is_optional(monkeypatch):
+    monkeypatch.setenv("LLM_BACKEND", "gemini")
+    monkeypatch.setenv("GEMINI_API_KEY", "g")
+    monkeypatch.setenv("GEMINI_THINKING_LEVEL", "minimal")
+    calls = []
+    monkeypatch.setattr(llm, "_post", _fake_post({"generativelanguage": {"candidates": [
+        {"content": {"parts": [{"text": "ok"}]}}]}}, calls))
+    llm.complete("s", "u")
+    assert calls[0][1]["generationConfig"]["thinkingConfig"] == {"thinkingLevel": "minimal"}
 
 
 def test_mapper_uses_the_llm_but_pins_port_and_env(mock, tmp_path, monkeypatch):
@@ -109,6 +253,20 @@ def test_mapper_uses_the_llm_but_pins_port_and_env(mock, tmp_path, monkeypatch):
     assert inputs.port == rules.port and inputs.env == rules.env  # model's port/env ignored
     assert inputs.instance_type == "t3.small" and inputs.tags["cost-center"] == "cc-retail"
     assert [g.field for g in gaps] == ["cost-center"]
+
+
+def test_mapper_keeps_rules_tags_the_model_left_blank(mock, tmp_path, monkeypatch):
+    (tmp_path / "set_golden_inputs.json").write_text(json.dumps(
+        {"port": 8080, "instance_type": "t3.micro", "env": {},
+         "tags": {"owner": "team-commerce", "cost-center": "", "data_class": "confidential", "extra": "x"},
+         "gaps": [{"field": "env", "note": "noise"}, {"field": "owner", "note": "inferred"}]}))
+    monkeypatch.setattr(llm, "MOCK_DIR", tmp_path)
+    app = _app("app-orders")
+    rules, _ = mapper_rules.map_app(app)
+    inputs, gaps, used_llm = mapper_llm.map_app(app)
+    assert used_llm
+    assert inputs.tags == {**rules.tags, "owner": "team-commerce", "data-class": "confidential"}
+    assert [g.field for g in gaps] == ["owner"]
 
 
 def test_mapper_falls_back_to_rules_after_two_bad_answers(mock, tmp_path, monkeypatch):
@@ -146,13 +304,18 @@ def test_planning_keeps_the_template_when_off():
 # ---------------------------------------------------------------- live
 
 
-@pytest.mark.skipif(os.getenv("LLM_LIVE") != "1", reason="live Bedrock smoke test: set LLM_LIVE=1")
-def test_live_bedrock_smoke(monkeypatch):
+@pytest.mark.skipif(os.getenv("LLM_LIVE") != "1", reason="live smoke test: set LLM_LIVE=1")
+def test_live_smoke(monkeypatch):
+    """Uses the backend .env selects (LLM_LIVE_BACKEND overrides it)."""
     from dotenv import dotenv_values
 
-    model = dotenv_values(llm.aws.REPO_ROOT / ".env").get("LLM_MODEL_ID")
-    monkeypatch.setenv("LLM_BACKEND", "bedrock")
-    monkeypatch.setenv("LLM_MODEL_ID", model or "global.anthropic.claude-sonnet-4-6")
+    env = dotenv_values(llm.aws.REPO_ROOT / ".env")
+    kind = os.getenv("LLM_LIVE_BACKEND") or env.get("LLM_BACKEND") or "off"
+    if kind in ("off", "mock"):
+        pytest.skip(f"LLM_BACKEND={kind} in .env: nothing live to test")
+    monkeypatch.setenv("LLM_BACKEND", kind)
+    if kind == "watsonx":
+        monkeypatch.setenv("GEMINI_API_KEY", "")  # test watsonx itself, not the fallback
     tool = {"name": "submit_tier", "description": "Submit a tier.", "input_schema": {
         "type": "object", "properties": {"tier": {"type": "string", "enum": ["GOLDEN", "GRAY", "RED"]}},
         "required": ["tier"]}}

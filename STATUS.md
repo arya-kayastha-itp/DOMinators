@@ -45,11 +45,13 @@ restored it to legacy. This file is the integration captain's running view
 - **Cutover needs a traffic generator running** — outside the orchestrator
   (T4-O-8) nothing produces samples and the gate fails with "0 requests". The
   e2e script runs one; the orchestrator must too.
-- **LLM live path blocked on Bedrock access**: `agents/common/llm.py` now exists
-  and all 4 hooks (tiering, Planning pilot rationale, `mapper_llm`, `explainer`)
-  pass on `LLM_BACKEND=mock`. But Account B now refuses every Claude model until
-  someone submits the Anthropic use-case form in the Bedrock console (T1-3).
-  `.env` stays `LLM_BACKEND=off` until then.
+- **LLM on Gemini free tier**: Bedrock is out (Account B has no Marketplace
+  payment method) and watsonx is out (quota spent / project not linked). The demo
+  uses `gemini-3.1-flash-lite` (~1.5 s per call); all 4 hooks ran live with 0
+  fallbacks. The free tier allows about 15 requests/minute, so tiering sends at most
+  10 apps per run, and running Discovery twice back to back can hit the limit. That
+  costs nothing but AI answers: every hook falls back to rules. The LLM mapper
+  hasn't been through a real `terraform apply` yet.
 - **Parked apps are only parked by Planning**: Gitea/Vaultwarden are RED → parked
   and have no target group or rule in Account B, but `blueprint.run` /
   `cutover.run` don't refuse a RED app themselves — the orchestrator's lifecycle
@@ -63,8 +65,8 @@ restored it to legacy. This file is the integration captain's running view
 
 ## Next
 
-- Account B owner: submit the Anthropic use-case form, then
-  `LLM_LIVE=1 pytest agents/tests/test_llm.py -k live` and set `LLM_BACKEND=bedrock`.
+- Every demo machine needs `GEMINI_*` in its `.env` (see `.env.example`) and
+  `LLM_BACKEND=gemini`; check with `LLM_LIVE=1 pytest agents/tests/test_llm.py -k live`.
 - Track 4 (C1): orchestrator on the real agents (must autostart the traffic
   generator, T4-O-8); `tools.py` / `loop.py`.
 - Track 3: review the gate tuning; real bad-wave run on `app-orders`; kill test.

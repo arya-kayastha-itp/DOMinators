@@ -122,7 +122,13 @@ checks of the edge ALB, and headless-browser tests of the console._
       use-case form** (Bedrock → Model catalog → any Anthropic model), waits ~15 min,
       then runs `LLM_LIVE=1 pytest agents/tests/test_llm.py -k live`. `claude-sonnet-5`
       is not enabled for the account. `LLM_MODEL_ID=global.anthropic.claude-sonnet-4-6`
-      is in `.env.example`
+      is in `.env.example`. Use-case form submitted; the live smoke test then
+      **passed once**, but the next calls failed with *"Model access is denied due to
+      INVALID_PAYMENT_INSTRUMENT … AWS Marketplace subscription for this model cannot
+      be completed"*. **Blocker: Account B (or its org's management account) needs a
+      valid payment method that can buy AWS Marketplace subscriptions** (Anthropic
+      models on Bedrock are billed through Marketplace). Every hook fell back to rules
+      correctly during that run (3 `LLM_FALLBACK` events; tiering falls back silently)
 - [x] T1-4 `app_routes` output in `envs/target` (`path_prefix`, `priority`, `port`,
       `listener_port`, `health_path`, `runtime`); `data/target_outputs.json` re-exported
       **without a BOM** (the previous PowerShell export had one, which breaks Python's
@@ -247,13 +253,27 @@ checks of the edge ALB, and headless-browser tests of the console._
       Bedrock via boto3's Converse API (no `anthropic` SDK needed; pip can't reach
       PyPI on the A2 laptop), `AWS_BEARER_TOKEN_BEDROCK` honoured, `anthropic`
       backend imports the SDK lazily. Tested offline (mock + fake Converse client);
-      the live Bedrock path waits on T1-3
+      the live Bedrock path waits on T1-3.
+      **2026-09-27: Bedrock dropped (no payment method) → `watsonx` backend added
+      as primary** (IBM watsonx.ai chat API, IAM token cached, forced
+      `tool_choice`, JSON-in-content accepted for Granite) **plus `gemini`**
+      (`functionCallingConfig` mode ANY, `parametersJsonSchema`), which is also
+      the automatic fallback for `watsonx` when `GEMINI_API_KEY` is set. Both are
+      stdlib HTTPS (no new dependencies).
+      **Live (2026-09-27): watsonx unusable** — the project isn't linked to a WML
+      instance, and via the space `token_quota_reached` (free quota spent).
+      **Gemini is the demo backend**: `gemini-3.1-flash-lite` +
+      `GEMINI_THINKING_LEVEL=minimal` answers in ~1.3–1.5 s (3.8/3.7/3.6-flash took
+      6–18 s or 503'd "high demand"); one 4 s wait-and-retry on 429/503 absorbs
+      free-tier bursts. `.env`: `LLM_BACKEND=gemini`
 - [ ] T4-L-2 `tools.py` (registry, validation, allowlist guard) (C1)
 - [ ] T4-L-3 `loop.py` (`TOOL_CALL` / `LLM_FALLBACK` events) (C1)
-- [ ] T4-L-4 LLM plumbing tests + one live Bedrock smoke test (C1) — `test_llm.py`:
-      12 offline tests pass (backends, forced tool choice, all 4 hooks on `mock`,
-      mapper fallback). The live test (`LLM_LIVE=1`) fails on T1-3's use-case form.
-      `conftest.py` now forces `LLM_BACKEND=off` so `.env` can't send the suite to Bedrock
+- [x] T4-L-4 LLM plumbing tests + one live smoke test — `test_llm.py`: 23 offline
+      tests (every backend's request shape, IAM-token caching, watsonx → Gemini
+      fallback, Gemini busy-retry, tiering/mapper guards, all 4 hooks on `mock`) +
+      the live test (`LLM_LIVE=1`, uses `.env`'s backend) **passed on Gemini**; full
+      suite 119/119 with it. `conftest.py` forces `LLM_BACKEND=off` so `.env` can't
+      send the normal suite to a live model
 
 ### 9. Discovery — Track 2 / A1
 - [x] T2-D-1 `scanner.py` on recorded responses (`IncludeDeprecated=True`, paginated,
@@ -266,10 +286,13 @@ checks of the edge ALB, and headless-browser tests of the console._
 - [x] T2-D-4 `deps.py`: edges from 3 signals (tag, ssm/env, sg_ref), linear-time;
       real edges `orders → pricing → catalog`, each with all 3 signals
 - [x] T2-D-5 `tiering.py` rules (non-EC2 runtime → GRAY per D2; commercial → RED)
-- [ ] T2-D-5 borderline → Claude via `submit_tiering` (hook written, max 8 concurrent,
-      rules on any failure) — mock-tested (borderline apps → `decided_by=llm`, RED
-      never asked); 20 of 1,006 apps are borderline, so ~20 calls per full run.
-      Live run waits on T1-3
+- [x] T2-D-5 borderline → LLM via `submit_tiering` — **live on Gemini: 10/10
+      borderline apps decided by the LLM**, sensible GRAY/GOLDEN calls. Guards added
+      after the first live run (which pushed 75-point apps to RED): the model only
+      picks between the two tiers either side of the nearby threshold, is told which
+      findings the pattern auto-fixes, and at most 10 borderline apps go to it per run
+      (real first, 4 at a time) to stay inside the free tier's ~15 req/min. RED never
+      asked; rules on any failure. Takes 6–26 s in the background of a Discovery run
 - [x] T2-D-6 `synthetic.py`: `fleet.json` through the same rules → deps → tiering
       (1,000 apps < 3 s rules-only)
 - [x] T2-D-7 `run(scope)` + CLI `python -m agents.discovery`; events incl.
@@ -289,9 +312,10 @@ checks of the edge ALB, and headless-browser tests of the console._
       Wave 0 = real apps not parked; 3/week on Mon/Wed/Fri skipping 15 Dec – 5 Jan;
       projection
 - [x] T2-P-5 Template rationale per wave
-- [ ] T2-P-5 Optional LLM rationale — `planning.run()` asks Claude to rewrite the
+- [x] T2-P-5 Optional LLM rationale — `planning.run()` asks the LLM to rewrite the
       pilot wave's rationale only (one call; template + `LLM_FALLBACK` on failure;
-      membership/order never from the model). Mock-tested; live waits on T1-3
+      membership/order never from the model). Live on Gemini: a correct two-sentence
+      "providers before consumers; stateful apps parked" explanation
 - [x] T2-P-6 `run()` + CLI `python -m agents.planning`; `PLAN_DONE`; statuses →
       `PLANNED` / `PARKED`; errors loudly if Discovery hasn't run. Live: 1,006 apps →
       29 waves, 155 parked, finish 2026-12-02
@@ -315,8 +339,6 @@ checks of the edge ALB, and headless-browser tests of the console._
       destroyed (`terraform destroy`, 2 resources); every rule verified 100/0 legacy;
       local `data/state.db` and `generated/app-catalog` deleted. Account B now runs
       only `app-hello` plus the base infra
-- [ ] T2-D-5 / T2-P-5 LLM paths tested on `mock` only — live Bedrock run waits on
-      T1-3 (Anthropic use-case form in Account B)
 - [ ] Nothing in `blueprint.run` / `cutover.run` refuses a RED/parked app: only
       Planning parks Gitea/Vaultwarden, so a direct CLI call would still try. The
       orchestrator's lifecycle check (T4-O-5) must reject it; Track 3 may add a guard too
@@ -335,8 +357,12 @@ checks of the edge ALB, and headless-browser tests of the console._
       (single-shot, so `lookup_target_endpoint` isn't wired): the model starts from
       the rules mapping and **`port` and `env` stay pinned to the rules values**
       (A2 change — an invented `UPSTREAM_URL` passes validation but breaks a real
-      apply); Claude picks instance type, tags and gaps. Mock-tested incl. the
-      fallback; live waits on T1-3. Track 3 to review
+      apply); the LLM picks instance type, tags and gaps. Live on Gemini: both real
+      apps mapped by the LLM, 0 fallbacks, after two more guards — only the 3
+      required tag keys are kept (Gemini added `cost_center`/`data_class`
+      duplicates that would become real AWS tags; underscores are normalised), a
+      blank tag keeps the rules default, and gaps are limited to fields the model
+      decides. Not yet used in a real `terraform apply`. Track 3 to review
 - [x] T3-B-4 `templates/main.tf.j2` → `generated/<app>/main.tf` (wiring only from
       `target_outputs.json`) — one template for real applies and local
       dry-run validates alike (`-backend=false` skips the backend block
@@ -400,10 +426,11 @@ checks of the edge ALB, and headless-browser tests of the console._
 - [x] T3-C-7 Heartbeat for the orchestrator watchdog — writes
       `cutover_heartbeat:<app_id>` every 1s while cutting over; the watchdog
       that resets stale weights is Track 4's orchestrator (T4-O-9), not built here
-- [ ] T3-C-8 LLM explainer (template fallback) — `explainer.py`; template path
+- [x] T3-C-8 LLM explainer (template fallback) — `explainer.py`; template path
       implemented and tested (matches the fixture's tone: *"All gates passed
-      at 10%, 50%, 100%; traffic followed the weights."*); LLM path mock-tested
-      via `llm.complete`, live waits on T1-3
+      at 10%, 50%, 100%; traffic followed the weights."*); LLM path live on Gemini:
+      *"The app-orders cutover was rolled back after the new version triggered a 38%
+      error rate, exceeding the 2% threshold."*
 - [x] T3-C-9 Synthetic wave simulation (~3% seeded rollbacks) — `simulate.py`;
       deterministic per `app_id` (seeded PRNG), 1,000-app wave in **1.4s**
       after batching events (`emit_batch_leveled`, new additive function —
