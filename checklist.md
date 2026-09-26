@@ -339,9 +339,9 @@ checks of the edge ALB, and headless-browser tests of the console._
       destroyed (`terraform destroy`, 2 resources); every rule verified 100/0 legacy;
       local `data/state.db` and `generated/app-catalog` deleted. Account B now runs
       only `app-hello` plus the base infra
-- [ ] Nothing in `blueprint.run` / `cutover.run` refuses a RED/parked app: only
-      Planning parks Gitea/Vaultwarden, so a direct CLI call would still try. The
-      orchestrator's lifecycle check (T4-O-5) must reject it; Track 3 may add a guard too
+- [x] RED/parked apps are refused by the orchestrator's lifecycle check (T4-O-5: 409
+      "parked (RED)"), which the console and demo go through. A direct CLI call to
+      `blueprint.run` still wouldn't refuse — Track 3 may add a guard there too
 
 ### 11. Blueprint/IaC — Track 3 / A3
 - [x] T3-B-1 `GoldenInputs` schema (no IP literals in `env`) — `schema.py`:
@@ -458,18 +458,44 @@ checks of the edge ALB, and headless-browser tests of the console._
       the demo host OS is still open, per Track 3's own note that signal
       handling differs on Windows
 
-### 13. Orchestrator (backend) — Track 4 / C1
-- [ ] T4-O-1 FastAPI app + `/healthz`
-- [ ] T4-O-2 All CONTRACTS endpoints; async runs; per-app `409` locks
-- [ ] T4-O-3 Stub mode replaying `events.jsonl`
-- [ ] T4-O-4 SSE with `Last-Event-ID` replay + keep-alive
-- [ ] T4-O-5 Lifecycle transitions enforced
-- [ ] T4-O-6 `/runs/wave/{n}` (real apply + cutover, synthetic dry-run + sim)
-- [ ] T4-O-7 `/demo/bad-wave`, `/demo/reset`
-- [ ] T4-O-8 Traffic generator autostart
-- [ ] T4-O-9 Heartbeat watchdog (tested with a hard kill)
-- [ ] T4-O-10 API tests on stub mode
-- [ ] T4-S-1 `Makefile` (`run`, `demo-reset`, `demo-check`, `e2e`, `destroy`)
+### 13. Orchestrator (backend) — Track 4 / C1 — built by A2 (`orchestrator/`)
+- [x] T4-O-1 FastAPI app + `/healthz` (`uvicorn orchestrator.main:app --port 8000`; CORS for :3000)
+- [x] T4-O-2 All CONTRACTS endpoints + the addendum's; `POST /runs/*` → `202 {run_id}` on a
+      thread pool; per-app lock keys → `409` on a second run. Extra read models the console needs so
+      no number is computed from mock data: `/fleet`, `/summary`, `/statuses`, `/plan/preview` (the
+      real planner, unsaved), `/weights/{app}` (read from the ALB), `/traffic/{app}` (per-second
+      buckets of real requests), `/copilot`
+- [ ] T4-O-3 Stub mode replaying `events.jsonl` — **dropped**: the console runs on the real agents
+      (fixtures still back the agent tests)
+- [x] T4-O-4 SSE (`GET /events`) with `Last-Event-ID`/`?after=` replay, 15 s keep-alive, `event:
+      reset` when the store was reset under the client; server-side one-line `summary` per event
+- [x] T4-O-5 Lifecycle enforced with reasons: blueprint needs PLANNED+, never on PARKED (closes the
+      "nothing refuses a RED app" gap for anything that goes through the orchestrator), apply only for
+      real apps with a target route; cutover only real + PROVISIONED + an app that answers with
+      `served_by`; discovery refused while any run is active (it re-tiers every app)
+- [x] T4-O-6 `/runs/wave/{n}`: synthetic apps → blueprint dry run + `simulate_wave` (events carry
+      `sim`); real apps → parallel applies, then cutovers one at a time providers-first (Juice Shop
+      is provisioned only — its stock image has no `served_by`, so the share gate can't work)
+- [x] T4-O-7 `/demo/bad-wave`, `/demo/reset[?destroy=true]` (weights 100/0 on every rule, optional
+      `terraform destroy` of every `generated/<app>`, `store.reset()`), `/demo/weights/{app}` break-glass
+- [x] T4-O-8 Traffic generator started per cutover (5 s warm-up, 8 s tail) instead of at boot, so
+      only the app being cut over gets load
+- [x] T4-O-9 Heartbeat watchdog thread (1 s): a CUTTING_OVER app with no live run and a heartbeat
+      older than 5 s → weights 100/0 + `ROLLED_BACK{reason: watchdog}`. Unit-tested both ways; a
+      literal process hard-kill on the demo host still to do
+- [x] T4-O-10 API tests: `agents/tests/test_orchestrator.py` (16, on the real agents with fakes
+      for AWS)
+- [x] Blueprint's terraform runner streams output line by line as TOOL_CALL events (was: all at
+      once when each command ended) with ANSI stripped, 1200 s timeout for init/plan/apply, and a
+      `destroy()` for reset
+- [x] Live through the API (2026-09-27): discovery (1,006 apps, 6 real, 10 Gemini tier calls),
+      planning (29 waves, 155 parked, finish 2026-12-02, Gemini pilot rationale), and a real
+      `terraform apply` of `app-catalog` with output streamed as events → PROVISIONED, healthy
+- [ ] Real cutover + bad-wave rollback driven from the console UI (not yet done)
+- [ ] Golden `app-catalog` instance from that apply is still running in Account B — Reset +
+      destroy from the console when the UI check is done
+- [ ] T4-S-1 `Makefile` — Windows demo host, so `scripts/dev.ps1` starts orchestrator + console
+      instead; demo-check/e2e targets not written
 
 ### 14. Dashboard (frontend) — Track 4 / C2 — `migration-accelerator-console/`
 Built as a Next.js 16 console on a contract-shaped mock layer. Verified 2026-09-26 in headless
@@ -477,27 +503,39 @@ Edge: every route renders with no console errors, no horizontal overflow at 320/
 both themes, keyboard skip link, and the demo flows below.
 - [x] T4-F-1 Scaffold + design tokens (light/dark, fixed tier/env colours), collapsible sidebar,
       breadcrumbs, command palette (Ctrl K), Copilot panel (Ctrl J), toasts
-- [ ] T4-F-2 Typed API client + SSE hook — **not yet**: screens read the in-browser provider
-- [ ] T4-F-3 Mock API from `fixtures/` — `fixtures/` now exists on main, but the console still
-      reads its own contract-shaped mock data in `lib/data/*`; switching over is still to do
-- [x] T4-F-4 Fleet tab (1,003 apps, search/filter/sort/pagination, CSV export, detail drawer)
-- [x] T4-F-5 Activity tab (filters, pause/resume, expandable payloads, JSON export)
-- [x] T4-F-6 Plan tab (live capacity slider → client-side planner; cap 8 → Sep 2027 ✓, cap 5 → misses)
-- [x] T4-F-7 Blueprint diff tab (real golden_app main.tf per app, annotated fixes, gaps, bad-wave warning)
-- [x] T4-F-8 Cutover live chart + gates + rollback banner — verified: 3/3 clean cutovers
-      MIGRATED; bad wave auto-rolls back at 10% with legacy restored in ~0.8 s
-- [x] T4-F-9 Dependencies graph (3D, live chain / fleet sample / 2-hop focus, accessible edge list)
-- [x] T4-F-10 Impact panel (ROI calculator, throughput lanes, posture, corrected real-vs-simulated)
-- [x] T4-F-11 Demo controls (`?demo=1`)
-- [ ] T4-F-12 Loading/error states are in; **projector-resolution test still to do**
+- [x] T4-F-2 Typed API client (`lib/api.ts`) + live provider: REST snapshots + the SSE stream,
+      targeted refetch per event type, reconnect/resume, full reload on `reset`
+- [x] T4-F-3 Mock layer **removed** (`lib/data/*`, `lib/copilot.ts` deleted) — the console runs
+      only on the orchestrator; every view has loading / not-discovered / offline states
+- [x] T4-F-4 Fleet tab on the live fleet (real counts, no fake sparklines or load delay; discovery
+      progress from real APP_DISCOVERED events)
+- [x] T4-F-5 Activity tab on the live stream (orchestrator agent, success level, hide-terraform toggle)
+- [x] T4-F-6 Plan tab: slider previews through the real planner (`/plan/preview`), Commit runs
+      planning, per-wave Run button + live migrated/rolled-back progress
+- [x] T4-F-7 Blueprint tab: the stored BlueprintResult (real diff/fixes/gaps/inputs), stages
+      derived from streamed terraform events, live terraform terminal, parked apps refused with reason
+- [x] T4-F-8 Cutover tab: canvas where every particle is one real request drawn to the side that
+      served it; ALB weights read live from the ALB; gates computed from real traffic with
+      config.yaml thresholds; step/countdown from WEIGHT_SET/GATE_* events; rollback banner with
+      the real explanation and ALB-confirmed 100/0; fix & retry; break-glass on the real ALB
+- [x] T4-F-9 Dependencies graph on live edges (all signal types; migrated apps recolour)
+- [x] T4-F-10 Impact panel **removed** — every figure on it was invented (ROI $, engineer-days,
+      "3–4 years"); the "3–4 years" hero line on Overview is gone too
+- [x] Overview: live Migration board (real apps as cards moving lane to lane on real status
+      events, synthetic counts per lane), guided "next step", real stat cards
+- [x] Copilot answers via `POST /copilot` from real store facts (Gemini), facts-only fallback
+- [x] T4-F-11 Demo controls (`?demo=1`) + command palette call the real runs; Reset + destroy
+      asks for confirmation
+- [ ] T4-F-12 Loading/error states are in; **projector-resolution test still to do** (headless
+      Edge is blocked by policy on the A2 laptop, so the rewired UI has not been screenshot-tested)
 - [x] Console committed to git (`.gitignore` excludes `node_modules/`, `.next/` and
       `*.tsbuildinfo`)
-- [ ] Console wired to the orchestrator (replace the `run*` simulations with `POST /runs/*` + SSE)
+- [x] Console wired to the orchestrator; `tsc` clean and `next build` passes (8 routes, no /impact)
 - [x] `/journey` scroll-driven landing page (GSAP + ScrollTrigger + Lenis): preloader, WebGL hero
       (desktop only), pinned pipeline with a self-drawing path and a travelling packet, FLIP deep-dive
-      panel, simulated live run with the bad-wave rollback, success finale. Stages come from one config
-      (`lib/journey/pipeline.ts`). Verified 2026-09-27 in headless Edge at 1440 px and 390 px and with
-      reduced motion (no pinning, no Lenis, no WebGL); `next build` passes
+      panel, success finale. Now real: figures from `/summary` + `/demo/state` (reference values
+      when offline, labelled), "Live run" replays the last real cutover's events with true relative
+      times, stages ticked only if they happened
 - [ ] `/journey`: frame-rate check on real hardware (headless runs can't measure 60 fps)
 - [ ] `/journey`: link it from the console (right now it is only reachable by URL)
 - [ ] Track 3: adopt the statistical share gate in `gates.py` (see TRACK_3 T3-C-4)

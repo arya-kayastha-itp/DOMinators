@@ -1,9 +1,9 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Activity, ArrowDownRight, ArrowUpRight, Boxes, GitBranch, Info, LayoutDashboard, Layers3, Rocket, ShieldCheck, Terminal, TrendingUp } from 'lucide-react'
+import { Activity, ArrowDownRight, ArrowUpRight, Boxes, GitBranch, Info, LayoutDashboard, Layers3, Rocket, ShieldCheck, Terminal } from 'lucide-react'
 import type { AppStatus, FindingCode, Source, Tier } from '@/lib/contracts'
-import { FINDING_META } from '@/lib/data/fleet'
+import { FINDING_META } from '@/lib/meta'
 import { cn } from '@/lib/utils'
 import { Badge, Card, CountUp, Tip } from '@/components/ui/primitives'
 
@@ -16,7 +16,6 @@ export const NAV = [
   { href: '/blueprint', label: 'Blueprint', icon: ShieldCheck, group: 'Execute', description: 'Legacy → hardened Terraform diff' },
   { href: '/cutover', label: 'Cutover', icon: Rocket, group: 'Execute', description: 'Live traffic shift with auto-rollback' },
   { href: '/activity', label: 'Activity', icon: Terminal, group: 'Govern', description: 'Audit trail of every agent decision' },
-  { href: '/impact', label: 'Impact', icon: TrendingUp, group: 'Govern', description: 'ROI and security posture' },
 ] as const
 
 // ---------------------------------------------------------------- Page header

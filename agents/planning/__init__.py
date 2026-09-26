@@ -34,7 +34,9 @@ def _llm_pilot_rationale(plan: WavePlan, tiers: list[Tiering], edges: list[Edge]
             "pilot_order": pilot.app_ids,
             "pilot_tiers": {a: tier_of[a].tier.value for a in pilot.app_ids if a in tier_of},
             "dependencies": [f"{e.from_} -> {e.to}" for e in edges if e.from_ in pilot.app_ids],
-            "parked_real_apps": {a: tier_of[a].risk_summary for a in real_parked if a in tier_of},
+            # Tier reasons, not risk_summary: the summary also mentions exposure,
+            # which the model then misreads as a reason for parking.
+            "parked_real_apps": {a: tier_of[a].reasons for a in real_parked if a in tier_of},
         }
         pilot.rationale = llm.complete(RATIONALE_SYSTEM, str(facts), max_tokens=200)
     except Exception as exc:  # noqa: BLE001 - keep the template rationale

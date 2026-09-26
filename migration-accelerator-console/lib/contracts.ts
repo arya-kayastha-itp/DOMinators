@@ -1,6 +1,6 @@
 // TypeScript mirror of docs/CONTRACTS.md (incl. the agents-phase addendum).
-// Keep these shapes identical to the orchestrator's JSON so the mock layer in
-// lib/data can be swapped for the live API without touching any screen.
+// Keep these shapes identical to the orchestrator's JSON (orchestrator/main.py);
+// lib/api.ts adds the orchestrator-only response shapes.
 
 export type Source = 'real' | 'synthetic'
 export type Tier = 'GOLDEN' | 'GRAY' | 'RED'
@@ -35,12 +35,12 @@ export type AppRecord = {
   app_id: string
   source: Source
   name: string
-  owner: string
-  business_unit: string
+  owner: string | null
+  business_unit: string | null
   runtime: {
     type: 'ec2' | 'ecs' | 'unknown'
     instance_ids: string[]
-    ami_id: string
+    ami_id: string | null
     ami_age_days: number | null
     instance_type: string
     port: number

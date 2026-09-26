@@ -1,23 +1,17 @@
 import { CloudCheck, Database, Layers3, Radar, Rocket, ShieldCheck, type LucideIcon } from 'lucide-react'
+import type { DemoState, Summary } from '@/lib/api'
 
 // ---------------------------------------------------------------------------
 // THE PIPELINE — edit this array to change every section of /journey.
 //
-// Order matters: the SVG path, the packet, the live-status run and the final
-// CTA all follow it. Content is taken from docs/FLOW.md, docs/ARCHITECTURE.md
-// and the live values recorded in checklist.md.
-//
-// `status` is the state the live-status run ends on. `logs` are replayed in
-// order; a line with level 'error' flips the stage to `failed` until the next
-// line arrives (that is how the bad-wave rollback + retry is told).
+// Order matters: the SVG path, the packet, the live-run section and the final
+// CTA all follow it. PIPELINE holds the static story; liveStages() overlays
+// the numbers the orchestrator reports (GET /summary, GET /demo/state) when it
+// is reachable. REFERENCE is what the page shows when it is not — the real
+// fleet and the recorded end-to-end run, never an invented figure.
 // ---------------------------------------------------------------------------
 
 export type StageStatus = 'queued' | 'running' | 'passed' | 'failed'
-
-export interface LogLine {
-  text: string
-  level?: 'info' | 'ok' | 'warn' | 'error'
-}
 
 export interface PipelineStage {
   id: string
@@ -28,13 +22,39 @@ export interface PipelineStage {
   icon: LucideIcon
   input: string[]
   output: string[]
-  status: StageStatus
   /** One headline number for the node card. */
   metric: { value: string; label: string }
   /** Extra facts for the full-screen deep dive. */
   details: string[]
-  logs: LogLine[]
 }
+
+/** Ground truth used when the orchestrator is offline. */
+export const REFERENCE = {
+  appsTotal: 1006,
+  real: 6,
+  synthetic: 1000,
+  findingCodes: 10,
+  golden: ['app-catalog', 'app-pricing', 'app-orders', 'app-juice-shop'],
+  stateful: ['app-gitea', 'app-vaultwarden'],
+  wave0: ['app-catalog', 'app-pricing', 'app-orders', 'app-juice-shop'],
+  capacityPerWave: 40,
+  wavesPerWeek: 3,
+  steps: [10, 50, 100],
+  observeS: 35,
+  settleS: 15,
+  gates: { maxErrorRate: 0.02, maxP95Ms: 800, minTargetShareRatio: 0.6 },
+  /** The recorded end-to-end run (app-catalog, later restored to legacy). */
+  run: {
+    app: 'app-catalog',
+    targetShare: [0.097, 0.5, 1.0],
+    errorRate: 0,
+    p95: '~100–120 ms',
+    duration: '~110 s',
+  },
+} as const
+
+const short = (id: string) => id.replace(/^app-/, '')
+const pct = (x: number) => `${Math.round(x * 100)}%`
 
 export const PIPELINE: PipelineStage[] = [
   {
@@ -42,23 +62,17 @@ export const PIPELINE: PipelineStage[] = [
     name: 'Legacy estate',
     kicker: 'Source · Account A',
     description:
-      'Three deliberately insecure EC2 apps in a flat VPC with no private tier, plus ~1,000 synthetic app records standing in for the rest of the estate.',
+      'Six deliberately insecure EC2 apps in a flat VPC with no private tier, plus 1,000 synthetic app records (fleet.json, seed 42) standing in for the rest of the estate.',
     icon: Database,
     input: ['Account A · 10.10.0.0/16', 'fleet.json (seed 42)'],
     output: ['Read-only discovery role', 'Raw instance + SSM config'],
-    status: 'passed',
-    metric: { value: '9', label: 'finding codes planted' },
+    metric: { value: '10', label: 'finding codes planted' },
     details: [
-      'app-catalog, app-pricing and app-orders run behind the edge ALB over VPC peering.',
+      'Golden candidates: app-catalog, app-pricing, app-orders and app-juice-shop.',
+      'app-gitea and app-vaultwarden are stateful: they are tiered Red, parked and never migrated.',
       'Headline finding: NO_VPC_SEGMENTATION — every route table sends 0.0.0.0/0 to the IGW.',
       'Dependencies hidden three ways: depends-on tags, /legacy/* SSM params, SG-to-SG rules.',
       'Synthetic apps carry raw config only; findings are computed by Discovery, never pre-labelled.',
-    ],
-    logs: [
-      { text: 'vpc-0bc12dd6664275ce7 · 10.10.0.0/16 · no private tier' },
-      { text: 'app-catalog 10.10.1.61 · app-pricing 10.10.1.138 · app-orders 10.10.1.30' },
-      { text: 'peering pcx-0ae4efd1f16fc19be · active' },
-      { text: 'GET /orders/ → 200 · served_by: legacy', level: 'ok' },
     ],
   },
   {
@@ -70,21 +84,12 @@ export const PIPELINE: PipelineStage[] = [
     icon: Radar,
     input: ['EC2 · SG · EBS · AMI describe calls', 'SSM /legacy/* parameters', 'fleet.json'],
     output: ['AppRecord[]', 'Tiering[]', 'Dependency edges'],
-    status: 'passed',
-    metric: { value: '1,003', label: 'apps discovered + tiered' },
+    metric: { value: '1,006', label: 'apps discovered + tiered' },
     details: [
       'Two-hop AssumeRole: mig-agent-runner → mig-discovery-readonly. Read-only by trust policy.',
-      'Rules tier the clear cases; Claude only settles the borderline ones through submit_tiering.',
+      'Rules tier the clear cases; the LLM only breaks ties on borderline ones and explains them.',
       'Real and synthetic apps go through the exact same normalisation and finding rules.',
       'Emits DISCOVERY_DONE with counts by tier.',
-    ],
-    logs: [
-      { text: 'AssumeRole mig-agent-runner → mig-discovery-readonly' },
-      { text: 'describe_instances · IncludeDeprecated=True · 3 instances' },
-      { text: 'ssm get_parameters_by_path /legacy/' },
-      { text: 'edges: orders → pricing → catalog (tag · ssm · sg)' },
-      { text: 'fleet.json · 1,000 synthetic records ingested' },
-      { text: 'DISCOVERY_DONE · golden 60% · gray 25% · red 15%', level: 'ok' },
     ],
   },
   {
@@ -95,21 +100,13 @@ export const PIPELINE: PipelineStage[] = [
       'Parks Red apps, builds the dependency graph, orders providers before consumers and packs Golden-then-Gray clusters into capacity-bounded waves with a projected finish date.',
     icon: Layers3,
     input: ['AppRecord[] + Tiering[]', 'Dependency edges', 'capacity_per_wave'],
-    output: ['WavePlan', 'Projection to end-2027'],
-    status: 'passed',
-    metric: { value: 'Wave 0', label: 'the 3 real apps, piloted first' },
+    output: ['WavePlan', 'Projection vs the end-2027 target'],
+    metric: { value: 'Wave 0', label: 'catalog → pricing → orders → juice-shop' },
     details: [
       'Red apps move to PARKED and go to an engineering queue.',
       'Strongly connected components migrate together; no consumer ever moves before its provider.',
-      'Wave 0 is always the 3 real apps, so the pilot can run immediately.',
-      'Plans 1,000 apps in under a second.',
-    ],
-    logs: [
-      { text: 'Red tier → PARKED' },
-      { text: 'dependency closure · SCC clusters built' },
-      { text: 'topological order: catalog → pricing → orders' },
-      { text: 'Wave 0 (pilot) · 3 real apps' },
-      { text: 'PLAN_DONE · projected finish Sep 2027', level: 'ok' },
+      'Wave 0 is the four real golden apps in dependency order, so the pilot can run immediately.',
+      'The projected finish is computed by the planner from capacity per wave and waves per week (default 40 apps/wave, 3 waves/week).',
     ],
   },
   {
@@ -121,20 +118,12 @@ export const PIPELINE: PipelineStage[] = [
     icon: ShieldCheck,
     input: ['AppRecord', 'golden_app variable schema', 'target_outputs.json'],
     output: ['generated/<app>/main.tf', 'Annotated diff', 'BlueprintResult'],
-    status: 'passed',
-    metric: { value: '≥ 7', label: 'annotated fixes per app' },
+    metric: { value: 'golden_app', label: 'one hardened Terraform module for every app' },
     details: [
-      'Claude fills schema-validated module variables. It never writes raw HCL.',
+      'Rules map the module variables (port and env are pinned); inputs are schema-validated and raw HCL is never hand-written.',
       'Private subnet, KMS-encrypted gp3, IMDSv2 required, SSM instead of SSH, ALB-only ingress.',
       'terraform validate + plan runs before every apply.',
       'Synthetic apps get a dry-run diff only; no infrastructure is created.',
-    ],
-    logs: [
-      { text: 'set_golden_inputs(app-catalog) · schema ✓' },
-      { text: 'render generated/app-catalog/main.tf' },
-      { text: 'terraform init · validate ✓ · plan ✓' },
-      { text: 'BLUEPRINT_READY · fixes annotated' },
-      { text: 'PROVISIONED · tg-app-catalog-target healthy', level: 'ok' },
     ],
   },
   {
@@ -146,22 +135,13 @@ export const PIPELINE: PipelineStage[] = [
     icon: Rocket,
     input: ['BlueprintResult', 'Target group ARNs', 'Live traffic · ~20 req/s'],
     output: ['CutoverRun', 'MIGRATED or ROLLED_BACK'],
-    status: 'passed',
     metric: { value: '< 2 s', label: 'automatic rollback' },
     details: [
-      'Gates: all targets healthy, error rate ≤ 2%, p95 ≤ 800 ms, ≥ 80% of the expected share served by target.',
-      'Rollback is plain code, so it is deterministic. Claude only writes the explanation afterwards.',
+      'Gates: all targets healthy, error rate ≤ 2%, p95 ≤ 800 ms, ≥ 60% of the expected share served by target.',
+      'Each step observes a 35 s window after a 15 s settle.',
+      'Rollback is plain code, so it is deterministic: weights go back to 100/0 automatically. The LLM only writes the explanation afterwards.',
       'Weights are restored in a finally block and on signals, so even a hard kill leaves 100/0.',
-      'The bad wave: app-orders ships without UPSTREAM_URL, fails at 10% and rolls back by itself.',
-    ],
-    logs: [
-      { text: 'precheck · tg-app-orders-target healthy' },
-      { text: 'WEIGHT_SET 10% · observing 20 s window' },
-      { text: 'gate failed · 38% 5xx from target', level: 'error' },
-      { text: 'ROLLED_BACK · weights 100/0 in 0.8 s', level: 'warn' },
-      { text: 'fix & retry · UPSTREAM_URL restored' },
-      { text: 'WEIGHT_SET 10 → 50 → 100% · all gates green' },
-      { text: 'MIGRATED · app-orders', level: 'ok' },
+      'Bad-wave demo: a blueprint ships without UPSTREAM_URL, the first gate catches it and the cutover rolls back by itself.',
     ],
   },
   {
@@ -169,22 +149,96 @@ export const PIPELINE: PipelineStage[] = [
     name: 'Landing zone live',
     kicker: 'Target · Account B',
     description:
-      'Apps now answer from the hardened target environment behind the same edge ALB, and every agent decision is in the audit trail.',
+      'Migrated apps answer from the hardened target environment behind the same edge ALB, and every agent decision is in the audit trail.',
     icon: CloudCheck,
     input: ['CutoverRun', 'Event stream'],
     output: ['served_by: target', 'Audit trail over SSE'],
-    status: 'passed',
-    metric: { value: '100%', label: 'traffic on the golden pattern' },
+    metric: { value: '1', label: 'real app cut over end to end (app-catalog)' },
     details: [
       'Account B · 10.20.0.0/16 with real public/private tiering and NAT.',
       'Every tool call, prompt and result is logged as an event: that log is the audit trail.',
       'Mutating tools only touch resources tagged managed-by=migration-accelerator.',
-      'The same pattern already serves app-hello in production.',
-    ],
-    logs: [
-      { text: 'GET /orders/ → 200 · served_by: target' },
-      { text: 'orders → pricing → catalog · all served by target' },
-      { text: 'events → dashboard over SSE', level: 'ok' },
+      'app-hello is a live demo app in Account B on the same golden pattern.',
     ],
   },
 ]
+
+/** Which stages have actually happened on the live system, in PIPELINE order. */
+export function stagesReached(summary: Summary | null): boolean[] {
+  if (!summary) return PIPELINE.map(() => false)
+  const real = summary.real_apps ?? []
+  const cutovers = Object.values(summary.cutovers_real ?? {})
+  const provisioned = real.some((a) => ['PROVISIONED', 'CUTTING_OVER', 'MIGRATED', 'ROLLED_BACK'].includes(a.status)) || cutovers.length > 0
+  const migrated = cutovers.some((c) => c.result === 'MIGRATED') || real.some((a) => a.status === 'MIGRATED')
+  const reached: Record<string, boolean> = {
+    legacy: summary.real > 0,
+    discovery: summary.discovered,
+    planning: summary.plan !== null,
+    blueprint: provisioned,
+    cutover: migrated,
+    live: migrated,
+  }
+  return PIPELINE.map((s) => reached[s.id] ?? false)
+}
+
+/** PIPELINE with the orchestrator's live numbers laid over it. */
+export function liveStages(summary: Summary | null, demo: DemoState | null): PipelineStage[] {
+  if (!summary && !demo) return PIPELINE
+  return PIPELINE.map((stage) => {
+    const s = { ...stage, metric: { ...stage.metric }, details: [...stage.details] }
+
+    if (summary?.discovered) {
+      if (s.id === 'legacy') {
+        s.metric = { value: String(summary.finding_codes_seen), label: 'finding codes detected across the fleet' }
+        s.description = `${summary.real} deliberately insecure EC2 apps in a flat VPC with no private tier, plus ${summary.synthetic.toLocaleString('en-US')} synthetic app records (fleet.json, seed 42) standing in for the rest of the estate.`
+        s.details.push(`Live: ${summary.real} real apps with ${summary.findings_real_total} findings and ${summary.edges_real} real dependency edges.`)
+      }
+      if (s.id === 'discovery') {
+        s.metric = { value: summary.apps_total.toLocaleString('en-US'), label: 'apps discovered + tiered' }
+        const t = summary.tiers
+        const ld = summary.last_discovery
+        s.details.push(
+          `Live: golden ${t.GOLDEN} · gray ${t.GRAY} · red ${t.RED}` +
+            (ld ? ` · last run ${(ld.duration_ms / 1000).toFixed(1)} s` : '') +
+            (summary.llm_decisions ? ` · ${summary.llm_decisions} tie-breaks by the LLM` : ''),
+        )
+      }
+    }
+
+    if (s.id === 'planning' && summary?.plan) {
+      const p = summary.plan
+      if (p.wave0.length) s.metric = { value: 'Wave 0', label: p.wave0.map(short).join(' → ') }
+      const fin = p.projection?.projected_finish
+      if (fin) {
+        s.details[3] =
+          `Live plan: ${p.waves} waves at ${p.capacity_per_wave} apps/wave, ${p.waves_per_week} waves/week, ${p.parked} parked · ` +
+          `projected finish ${fmtMonth(fin)}` +
+          (p.projection.meets_target_2027 ? ' (meets the 2027 target).' : ' (misses the 2027 target).')
+      }
+    }
+
+    if (s.id === 'cutover' && demo?.cutover_config) {
+      const c = demo.cutover_config
+      const g = c.gates
+      s.description = `Shifts ALB weights ${c.steps.join(' → ')}% under live traffic, checks the gates at every step and snaps back to legacy the moment one fails.`
+      s.details[0] =
+        `Gates: ${g.require_healthy_targets ? 'all targets healthy, ' : ''}error rate ≤ ${pct(g.max_error_rate)}, p95 ≤ ${g.max_p95_ms} ms, ` +
+        `≥ ${pct(g.min_target_share_ratio)} of the expected share served by target.`
+      s.details[1] = `Each step observes a ${c.observe_window_s} s window after a ${c.settle_s} s settle.`
+    }
+
+    if (s.id === 'live' && summary) {
+      const done = Object.values(summary.cutovers_real ?? {}).filter((c) => c.result === 'MIGRATED').map((c) => c.app_id)
+      s.metric = done.length
+        ? { value: String(done.length), label: `real app${done.length === 1 ? '' : 's'} cut over end to end (${done.join(', ')})` }
+        : { value: '0', label: 'real cutovers on record — start one from the console' }
+    }
+
+    return s
+  })
+}
+
+export function fmtMonth(iso: string) {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })
+}

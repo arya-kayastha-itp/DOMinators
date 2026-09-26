@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import type { Tier } from '@/lib/contracts'
 
-// Minimal node shape the graph needs — FleetApp (lib/data/fleet) satisfies it.
+// Minimal node shape the graph needs — FleetApp (lib/meta) satisfies it.
 export type GraphApp = { app_id: string; name: string; tier: Tier; source: 'real' | 'synthetic'; depends_on: string[] }
 type AppRecord = GraphApp
 
@@ -142,17 +142,20 @@ function AppNode({
   selected,
   onHover,
   onSelect,
+  migrated = false,
 }: {
   entry: Positioned
   hovered: boolean
   selected: boolean
+  migrated?: boolean
   onHover: (id: string | null) => void
   onSelect: (app: AppRecord | null) => void
 }) {
   const meshRef = useRef<THREE.Mesh>(null)
   const matRef = useRef<THREE.MeshStandardMaterial>(null)
   const phase = useMemo(() => Math.random() * Math.PI * 2, [])
-  const color = entry.isTarget ? TARGET_COLOR : TIER_COLOR[entry.app.tier]
+  // Apps already cut over take the target-platform colour.
+  const color = entry.isTarget || migrated ? TARGET_COLOR : TIER_COLOR[entry.app.tier]
   const baseSize = entry.isForeground ? 0.9 : entry.isTarget ? 0.85 : 0.42
   const introScale = useRef(0)
   // Deterministic per-node delay (hashed from id) so the intro reveal ripples across
@@ -471,12 +474,14 @@ function Scene({
   dark,
   labelEls,
   hoverEl,
+  migratedIds,
 }: {
   entries: Positioned[]
   onSelect: (app: AppRecord | null) => void
   selectedId: string | null
   foregroundChainIds: readonly string[]
   dark: boolean
+  migratedIds?: ReadonlySet<string>
   labelEls: React.RefObject<Map<string, HTMLDivElement | null>>
   hoverEl: React.RefObject<HTMLDivElement | null>
 }) {
@@ -515,6 +520,7 @@ function Scene({
           selected={selectedId === entry.app.app_id}
           onHover={setHoveredId}
           onSelect={onSelect}
+          migrated={migratedIds?.has(entry.app.app_id) ?? false}
         />
       ))}
 
@@ -542,9 +548,11 @@ export type DependencyGraph3DProps = {
   onSelect?: (app: GraphApp | null) => void
   selectedId?: string | null
   dark?: boolean
+  /** Apps whose live status is MIGRATED, drawn in the target colour. Separate from `apps` so status changes don't re-run the layout. */
+  migratedIds?: ReadonlySet<string>
 }
 
-export default function DependencyGraph3D({ apps, foregroundIds, onSelect, selectedId = null, dark = true }: DependencyGraph3DProps) {
+export default function DependencyGraph3D({ apps, foregroundIds, onSelect, selectedId = null, dark = true, migratedIds }: DependencyGraph3DProps) {
   const entries = useMemo(() => layoutApps(apps, foregroundIds), [apps, foregroundIds])
   const labelEls = useRef(new Map<string, HTMLDivElement | null>())
   const hoverEl = useRef<HTMLDivElement | null>(null)
@@ -557,7 +565,7 @@ export default function DependencyGraph3D({ apps, foregroundIds, onSelect, selec
         dpr={[1, 2]}
         gl={{ antialias: true, powerPreference: 'high-performance' }}
       >
-        <Scene entries={entries} onSelect={app => onSelect?.(app)} selectedId={selectedId} foregroundChainIds={foregroundIds} dark={dark} labelEls={labelEls} hoverEl={hoverEl} />
+        <Scene entries={entries} onSelect={app => onSelect?.(app)} selectedId={selectedId} foregroundChainIds={foregroundIds} dark={dark} labelEls={labelEls} hoverEl={hoverEl} migratedIds={migratedIds} />
       </Canvas>
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         {labeled.map(e => (
