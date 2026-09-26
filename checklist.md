@@ -310,8 +310,11 @@ checks of the edge ALB._
       `--restore` put `/catalog` back on 100% legacy (verified 10/10 `legacy`). Runs its
       own traffic generator (outside the orchestrator nothing produces samples);
       `--cutover-only` for retries
-- [ ] Golden `app-catalog` instance `i-0f3e1e4f37dc02f57` left running for Track 3 /
-      demo reuse — `terraform destroy` in `generated/app-catalog` when not needed
+- [x] Test leftovers removed so the demo starts from legacy (2026-09-27): golden
+      `app-catalog` instance `i-0f3e1e4f37dc02f57` + its target-group attachment
+      destroyed (`terraform destroy`, 2 resources); every rule verified 100/0 legacy;
+      local `data/state.db` and `generated/app-catalog` deleted. Account B now runs
+      only `app-hello` plus the base infra
 - [ ] T2-D-5 / T2-P-5 LLM paths tested on `mock` only — live Bedrock run waits on
       T1-3 (Anthropic use-case form in Account B)
 - [ ] Nothing in `blueprint.run` / `cutover.run` refuses a RED/parked app: only

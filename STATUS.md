@@ -13,6 +13,8 @@ restored it to legacy. This file is the integration captain's running view
   golden `app-catalog` (`i-0f3e1e4f37dc02f57`) applied and healthy, cutover
   10/50/100 on real traffic (target share 0.097 / 0.50 / 1.0, 0% errors,
   p95 ~100–120 ms) → MIGRATED → restored (10/10 requests back on `legacy`).
+  Afterwards the test instance was destroyed and local state cleared, so the
+  live demo starts from a clean legacy baseline.
 - **Framework** (`agents/common/`): contract models, SQLite store, event log,
   two-hop AWS sessions, fixture loader. `pytest` → 94 tests green.
 - **Discovery** — `python -m agents.discovery --scope real|synthetic|all`
@@ -67,4 +69,3 @@ restored it to legacy. This file is the integration captain's running view
   generator, T4-O-8); `tools.py` / `loop.py`.
 - Track 3: review the gate tuning; real bad-wave run on `app-orders`; kill test.
 - Register legacy Juice Shop in `tg-app-juice-shop-legacy` when the team says so.
-- Decide whether to keep the golden `app-catalog` instance running between rehearsals.
