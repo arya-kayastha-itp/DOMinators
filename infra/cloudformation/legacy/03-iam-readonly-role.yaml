@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  mig-discovery-readonly role in Account A, assumable only by
+  mig-agent-runner in Account B, gated by an ExternalId.
+
+Parameters:
+  AccountBId:
+    Type: String
+    Description: 12-digit AWS account ID of Account B (target)
+  ExternalId:
+    Type: String
+    Description: Shared secret required in the AssumeRole call
+    NoEcho: true
+
+Resources:
+  DiscoveryReadOnlyRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: mig-discovery-readonly
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AccountBId}:role/mig-agent-runner"
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Ref ExternalId
+      Policies:
+        - PolicyName: readonly-scan
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:Describe*
+                  - elasticloadbalancing:Describe*
+                  - ssm:GetParametersByPath
+                  - ssm:GetParameter
+                  - tag:GetResources
+                Resource: "*"
+
+Outputs:
+  RoleArn:
+    Value: !GetAtt DiscoveryReadOnlyRole.Arn
+    Export:
+      Name: mig-discovery-readonly-arn

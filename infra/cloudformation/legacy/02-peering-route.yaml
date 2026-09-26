@@ -1,0 +1,30 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Account A side of the VPC peering route to Account B (target).
+  Cross-account peering acceptance itself is not a CloudFormation
+  resource here — accept it once via CLI (see deploy steps), then
+  run this stack to add the return route.
+
+Parameters:
+  EnvName:
+    Type: String
+    Default: mig-legacy
+  PeeringConnectionId:
+    Type: String
+    Description: pcx-xxxxxxxx — from `aws ec2 accept-vpc-peering-connection`, or Account B's requester stack output
+  TargetVpcCidr:
+    Type: String
+    Default: 10.20.0.0/16
+
+Resources:
+  RouteToTarget:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !ImportValue
+        Fn::Sub: "${EnvName}-public-rt-id"
+      DestinationCidrBlock: !Ref TargetVpcCidr
+      VpcPeeringConnectionId: !Ref PeeringConnectionId
+
+Outputs:
+  RouteAdded:
+    Value: !Ref RouteToTarget
