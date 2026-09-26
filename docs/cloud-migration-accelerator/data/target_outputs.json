@@ -1,0 +1,128 @@
+﻿{
+  "agent_runner_role_arn": {
+    "sensitive": false,
+    "type": "string",
+    "value": "arn:aws:iam::408336117553:role/mig-agent-runner"
+  },
+  "alb_dns_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "mig-edge-alb-1536629619.ap-south-1.elb.amazonaws.com"
+  },
+  "alb_security_group_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "sg-09d4a1955cb79e931"
+  },
+  "app_hello_private_ip": {
+    "sensitive": false,
+    "type": "string",
+    "value": "10.20.10.254"
+  },
+  "golden_instance_profile_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "mig-app-instance"
+  },
+  "golden_security_group_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "sg-0b65d5d4de9d23959"
+  },
+  "kms_key_alias": {
+    "sensitive": false,
+    "type": "string",
+    "value": "alias/mig-ebs"
+  },
+  "legacy_target_group_arns": {
+    "sensitive": false,
+    "type": [
+      "object",
+      {
+        "app-catalog": "string",
+        "app-orders": "string",
+        "app-pricing": "string"
+      }
+    ],
+    "value": {
+      "app-catalog": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:targetgroup/tg-app-catalog-legacy/2945dbdb34c8a6b6",
+      "app-orders": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:targetgroup/tg-app-orders-legacy/31f3b687d7be7763",
+      "app-pricing": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:targetgroup/tg-app-pricing-legacy/6a5c21307a8dc2bb"
+    }
+  },
+  "listener_arn": {
+    "sensitive": false,
+    "type": "string",
+    "value": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:listener/app/mig-edge-alb/176961faee0bc9a2/9e5e781bf6d52473"
+  },
+  "listener_rule_arns": {
+    "sensitive": false,
+    "type": [
+      "object",
+      {
+        "app-catalog": "string",
+        "app-orders": "string",
+        "app-pricing": "string"
+      }
+    ],
+    "value": {
+      "app-catalog": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:listener-rule/app/mig-edge-alb/176961faee0bc9a2/9e5e781bf6d52473/e01bf831a0a8dcfd",
+      "app-orders": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:listener-rule/app/mig-edge-alb/176961faee0bc9a2/9e5e781bf6d52473/ee5f9bc1fc550223",
+      "app-pricing": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:listener-rule/app/mig-edge-alb/176961faee0bc9a2/9e5e781bf6d52473/81717f836727c7a3"
+    }
+  },
+  "private_subnet_ids": {
+    "sensitive": false,
+    "type": [
+      "tuple",
+      [
+        "string",
+        "string"
+      ]
+    ],
+    "value": [
+      "subnet-09486f771159b9ee2",
+      "subnet-0e294b7c30225765f"
+    ]
+  },
+  "public_subnet_ids": {
+    "sensitive": false,
+    "type": [
+      "tuple",
+      [
+        "string",
+        "string"
+      ]
+    ],
+    "value": [
+      "subnet-0f80e1012f02c39b9",
+      "subnet-0e72cd24ac9ff5e35"
+    ]
+  },
+  "target_group_arns": {
+    "sensitive": false,
+    "type": [
+      "object",
+      {
+        "app-catalog": "string",
+        "app-orders": "string",
+        "app-pricing": "string"
+      }
+    ],
+    "value": {
+      "app-catalog": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:targetgroup/tg-app-catalog-target/23ffea897f6d8bad",
+      "app-orders": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:targetgroup/tg-app-orders-target/319cef1246934b13",
+      "app-pricing": "arn:aws:elasticloadbalancing:ap-south-1:408336117553:targetgroup/tg-app-pricing-target/ea86754954546453"
+    }
+  },
+  "tf_apply_role_arn": {
+    "sensitive": false,
+    "type": "string",
+    "value": "arn:aws:iam::408336117553:role/mig-tf-apply"
+  },
+  "vpc_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "vpc-06b381c1e65577891"
+  }
+}

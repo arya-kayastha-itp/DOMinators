@@ -93,6 +93,21 @@ ENV/
 *.jar
 *.war
 target/
+# ...except our own envs/target/ Terraform dir (not a Java build output)
+!docs/cloud-migration-accelerator/infra/terraform/envs/target/
+
+# Terraform (local state/config, not the module source)
+# NOTE: .terraform.lock.hcl is NOT ignored - Terraform's own guidance is to
+# commit it, so every apply picks the same provider versions.
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+backend-config.hcl
+crash.log
+crash.*.log
 
 # IDE files
 .vscode/
