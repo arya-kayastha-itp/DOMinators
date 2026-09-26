@@ -114,9 +114,13 @@ checks of the edge ALB._
       `listener_port`, `health_path`, `runtime`); `data/target_outputs.json` re-exported
       **without a BOM** (the previous PowerShell export had one, which breaks Python's
       `json.load`); verified with `json.load`
+- [x] `JuiceShopSG`/`JuiceShopInstance`/`GiteaSG`/`GiteaInstance` + their 2
+      `PrivateIp` outputs added to `account-a-v2.yaml`, `account-a-all-in-one.yaml`
+      and `04-legacy-apps.yaml` (Arya, both apps in one commit) — repo only, not
+      yet applied to the live stack
 - [ ] Juice Shop + Gitea deployed in Account A per `docs/ADDITIONAL_APPS.md` §1
-      (Nancy / Arya / Palak) — change set must show exactly 4 `Add`, and
-      `PeeringConnectionId` stays blank
+      (Nancy) — change set must show exactly 4 `Add`, and `PeeringConnectionId`
+      stays blank
 - [ ] Legacy Juice Shop IP registered in `tg-app-juice-shop-legacy`
       (`AvailabilityZone=all`); `curl <alb>:3000/` → 200 via peering
 - [ ] Track 2: Wave 0 / expected-findings tests updated for the 2 new apps
