@@ -122,7 +122,13 @@ checks of the edge ALB._
       use-case form** (Bedrock → Model catalog → any Anthropic model), waits ~15 min,
       then runs `LLM_LIVE=1 pytest agents/tests/test_llm.py -k live`. `claude-sonnet-5`
       is not enabled for the account. `LLM_MODEL_ID=global.anthropic.claude-sonnet-4-6`
-      is in `.env.example`
+      is in `.env.example`. Use-case form submitted; the live smoke test then
+      **passed once**, but the next calls failed with *"Model access is denied due to
+      INVALID_PAYMENT_INSTRUMENT … AWS Marketplace subscription for this model cannot
+      be completed"*. **Blocker: Account B (or its org's management account) needs a
+      valid payment method that can buy AWS Marketplace subscriptions** (Anthropic
+      models on Bedrock are billed through Marketplace). Every hook fell back to rules
+      correctly during that run (3 `LLM_FALLBACK` events; tiering falls back silently)
 - [x] T1-4 `app_routes` output in `envs/target` (`path_prefix`, `priority`, `port`,
       `listener_port`, `health_path`, `runtime`); `data/target_outputs.json` re-exported
       **without a BOM** (the previous PowerShell export had one, which breaks Python's
