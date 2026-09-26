@@ -43,8 +43,15 @@ restored it to legacy. This file is the integration captain's running view
 - **Cutover needs a traffic generator running** — outside the orchestrator
   (T4-O-8) nothing produces samples and the gate fails with "0 requests". The
   e2e script runs one; the orchestrator must too.
-- **LLM paths untested** (tiering, Planning rationale, `mapper_llm`, `explainer`)
-  until Track 4's `llm.py` exists — everything is `decided_by=rules`.
+- **LLM live path blocked on Bedrock access**: `agents/common/llm.py` now exists
+  and all 4 hooks (tiering, Planning pilot rationale, `mapper_llm`, `explainer`)
+  pass on `LLM_BACKEND=mock`. But Account B now refuses every Claude model until
+  someone submits the Anthropic use-case form in the Bedrock console (T1-3).
+  `.env` stays `LLM_BACKEND=off` until then.
+- **Parked apps are only parked by Planning**: Gitea/Vaultwarden are RED → parked
+  and have no target group or rule in Account B, but `blueprint.run` /
+  `cutover.run` don't refuse a RED app themselves — the orchestrator's lifecycle
+  check (T4-O-5) has to.
 - **Account B owner's laptop is slow for AWS work**: Python needs 26–36 s to load
   certifi's CA bundle (worked around with `AWS_CA_BUNDLE`), and anything inside
   OneDrive (the venv, Terraform's provider cache) is slow — first
@@ -54,8 +61,10 @@ restored it to legacy. This file is the integration captain's running view
 
 ## Next
 
+- Account B owner: submit the Anthropic use-case form, then
+  `LLM_LIVE=1 pytest agents/tests/test_llm.py -k live` and set `LLM_BACKEND=bedrock`.
 - Track 4 (C1): orchestrator on the real agents (must autostart the traffic
-  generator, T4-O-8); `llm.py`, then test the 4 LLM paths.
+  generator, T4-O-8); `tools.py` / `loop.py`.
 - Track 3: review the gate tuning; real bad-wave run on `app-orders`; kill test.
 - Register legacy Juice Shop in `tg-app-juice-shop-legacy` when the team says so.
 - Decide whether to keep the golden `app-catalog` instance running between rehearsals.
