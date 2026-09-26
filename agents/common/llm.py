@@ -64,7 +64,7 @@ def _bedrock():
 
 @lru_cache(maxsize=1)
 def _anthropic():
-    from anthropic import Anthropic
+    from anthropic import Anthropic  # pyright: ignore[reportMissingImports] - optional, only for LLM_BACKEND=anthropic
 
     return Anthropic(timeout=TIMEOUT_S, max_retries=0)
 
