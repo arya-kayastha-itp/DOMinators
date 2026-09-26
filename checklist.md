@@ -129,14 +129,32 @@ checks of the edge ALB._
       installed and both apps were unreachable (port 8080 timed out). Fixed to
       `dnf install -y docker` in all 3 CloudFormation templates and
       `docs/ADDITIONAL_APPS.md`
-- [ ] Live `mig-legacy-all` stack updated with the corrected `UserData` (will
-      show `Replacement: True` on `JuiceShopInstance`/`GiteaInstance` — expected,
-      they're fresh apps with no data to lose) and both apps verified reachable
-      on port 8080
+- [x] Live `mig-legacy-all` stack updated with the corrected `UserData`
+      (`Replacement: True` on `JuiceShopInstance`/`GiteaInstance`, as expected) —
+      **but the replacement instances came up with no `scripts-user` invocation
+      at all** (confirmed via `/var/log/cloud-init-output.log`: no `part-001`
+      attempt this time, vs. the first boot which did try and failed on
+      `amazon-linux-extras`). Root cause not yet found — worth re-checking before
+      any future full rebuild (T1-9). Worked around by connecting via **EC2
+      Instance Connect** (no `.pem` needed, AL2023 ships it pre-installed) and
+      running the `dnf install -y docker` + `docker run` commands by hand on both
+      instances. Both verified: `app-juice-shop` → `curl :8080/` → `200` (local
+      and external), `app-gitea` → `curl :8080/api/healthz` → `{"status":"pass"}`
+      (local and external) (2026-09-26)
+- [x] `VaultwardenSG`/`VaultwardenInstance` + `VaultwardenPrivateIp` output added
+      to all 3 CloudFormation templates (Arya) — 3rd real app, follows Gitea's
+      exact pattern: stateful (embedded SQLite on `/opt/vaultwarden`), tagged
+      `stateful=true`, no `TargetVpcCidr` ingress (Red tier, parked, never
+      migrates, no Account B work needed)
+- [ ] Change set applied to `mig-legacy-all` for `VaultwardenSG`/`VaultwardenInstance`
+      — expect exactly 2 `Add` rows, `PeeringConnectionId` left blank — and
+      verified reachable (`curl :8080/alive` → 200). Given the unresolved
+      UserData-not-executing issue above, be ready to install Docker + run the
+      container by hand via EC2 Instance Connect if it doesn't come up on its own
 - [ ] Legacy Juice Shop IP registered in `tg-app-juice-shop-legacy`
       (`AvailabilityZone=all`); `curl <alb>:3000/` → 200 via peering
-- [ ] Track 2: Wave 0 / expected-findings tests updated for the 2 new apps
-      (Juice Shop → Golden, Gitea → Red via `STATEFUL`)
+- [ ] Track 2: Wave 0 / expected-findings tests updated for the 3 new apps
+      (Juice Shop → Golden, Gitea + Vaultwarden → Red via `STATEFUL`)
 - [ ] Track 3: Blueprint passes `app_routes[app].runtime` into `golden_app` and
       handles apps with a `listener_port` (no `path_prefix`)
 - [ ] `envs/target` listener rules: `lifecycle { ignore_changes = [action] }` (or
