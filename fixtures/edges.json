@@ -1,0 +1,22 @@
+[
+  {
+    "from": "app-orders",
+    "to": "app-pricing",
+    "signals": [
+      "tag",
+      "ssm",
+      "sg_ref"
+    ],
+    "source": "real"
+  },
+  {
+    "from": "app-pricing",
+    "to": "app-catalog",
+    "signals": [
+      "tag",
+      "ssm",
+      "sg_ref"
+    ],
+    "source": "real"
+  }
+]

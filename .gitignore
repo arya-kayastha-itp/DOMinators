@@ -109,6 +109,11 @@ backend-config.hcl
 crash.log
 crash.*.log
 
+# Agent state store (SQLite + WAL files) and generated Terraform
+data/*.db
+data/*.db-*
+generated/
+
 # IDE files
 .vscode/
 .idea/

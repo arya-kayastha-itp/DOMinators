@@ -95,7 +95,7 @@ The app must also answer on its path prefix (for example `/catalog/` and `/catal
 | App | Depends on | Business tags | Extra issues |
 |---|---|---|---|
 | `app-catalog` | — | Present | Baseline issues only |
-| `app-pricing` | `app-catalog` | **Missing** | + `MISSING_TAGS` |
+| `app-pricing` | `app-catalog` | **Missing** | + `MISSING_TAGS`, `HARDCODED_IP` (decision D1: its `/legacy/app-pricing/CATALOG_URL` holds `http://10.10.1.61:8080`, so the rule genuinely fires; the instance's `findings` oracle tag predates this and omits it) |
 | `app-orders` | `app-pricing` | **Missing** | + `MISSING_TAGS`, `HARDCODED_IP` |
 
 The baseline issues on all 3 apps are `SG_OPEN_SSH`, `SG_OPEN_APP`, `EBS_UNENCRYPTED`, `IMDSV1`, `OLD_AMI`, `NO_VPC_SEGMENTATION` and `PUBLIC_IP` — 7 baseline findings, plus `MISSING_TAGS` and `HARDCODED_IP` per the table above (9 distinct finding codes across the fleet).

@@ -1,0 +1,94 @@
+[
+  {
+    "Subnets": [
+      {
+        "AvailabilityZoneId": "aps1-az3",
+        "MapCustomerOwnedIpOnLaunch": false,
+        "OwnerId": "533266974611",
+        "AssignIpv6AddressOnCreation": false,
+        "Ipv6CidrBlockAssociationSet": [],
+        "Tags": [
+          {
+            "Key": "aws:cloudformation:stack-name",
+            "Value": "mig-legacy-all"
+          },
+          {
+            "Key": "aws:cloudformation:logical-id",
+            "Value": "PublicSubnetB"
+          },
+          {
+            "Key": "aws:cloudformation:stack-id",
+            "Value": "arn:aws:cloudformation:ap-south-1:533266974611:stack/mig-legacy-all/8b2b44f0-b935-11f1-8e4f-02809389843b"
+          },
+          {
+            "Key": "Name",
+            "Value": "mig-legacy-public-b"
+          }
+        ],
+        "SubnetArn": "arn:aws:ec2:ap-south-1:533266974611:subnet/subnet-073d58f76a88aaa69",
+        "EnableDns64": false,
+        "Ipv6Native": false,
+        "PrivateDnsNameOptionsOnLaunch": {
+          "HostnameType": "ip-name",
+          "EnableResourceNameDnsARecord": false,
+          "EnableResourceNameDnsAAAARecord": false
+        },
+        "BlockPublicAccessStates": {
+          "InternetGatewayBlockMode": "off"
+        },
+        "SubnetId": "subnet-073d58f76a88aaa69",
+        "State": "available",
+        "VpcId": "vpc-0bc12dd6664275ce7",
+        "CidrBlock": "10.10.2.0/24",
+        "AvailableIpAddressCount": 251,
+        "AvailabilityZone": "ap-south-1b",
+        "DefaultForAz": false,
+        "MapPublicIpOnLaunch": true
+      },
+      {
+        "AvailabilityZoneId": "aps1-az1",
+        "MapCustomerOwnedIpOnLaunch": false,
+        "OwnerId": "533266974611",
+        "AssignIpv6AddressOnCreation": false,
+        "Ipv6CidrBlockAssociationSet": [],
+        "Tags": [
+          {
+            "Key": "aws:cloudformation:stack-id",
+            "Value": "arn:aws:cloudformation:ap-south-1:533266974611:stack/mig-legacy-all/8b2b44f0-b935-11f1-8e4f-02809389843b"
+          },
+          {
+            "Key": "Name",
+            "Value": "mig-legacy-public-a"
+          },
+          {
+            "Key": "aws:cloudformation:logical-id",
+            "Value": "PublicSubnetA"
+          },
+          {
+            "Key": "aws:cloudformation:stack-name",
+            "Value": "mig-legacy-all"
+          }
+        ],
+        "SubnetArn": "arn:aws:ec2:ap-south-1:533266974611:subnet/subnet-0853e5e88286f0942",
+        "EnableDns64": false,
+        "Ipv6Native": false,
+        "PrivateDnsNameOptionsOnLaunch": {
+          "HostnameType": "ip-name",
+          "EnableResourceNameDnsARecord": false,
+          "EnableResourceNameDnsAAAARecord": false
+        },
+        "BlockPublicAccessStates": {
+          "InternetGatewayBlockMode": "off"
+        },
+        "SubnetId": "subnet-0853e5e88286f0942",
+        "State": "available",
+        "VpcId": "vpc-0bc12dd6664275ce7",
+        "CidrBlock": "10.10.1.0/24",
+        "AvailableIpAddressCount": 246,
+        "AvailabilityZone": "ap-south-1a",
+        "DefaultForAz": false,
+        "MapPublicIpOnLaunch": true
+      }
+    ]
+  }
+]

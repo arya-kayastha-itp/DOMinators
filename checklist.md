@@ -132,7 +132,9 @@ checks of the edge ALB._
 - [ ] Teammates with an existing Windows clone re-checkout `*.py` / `*.tpl` / `*.yaml`
       once so the new `.gitattributes` LF rule applies (see ACCOUNT_B_SETUP §3)
 - [ ] T1-5 Every developer has CLI access to Account B + can assume `mig-agent-runner`;
-      `.env.example` lists all required variables
+      `.env.example` lists all required variables — `.env.example` part done; Track 2
+      now runs from the Account B owner's machine (Hem can't install the AWS CLI), so
+      per-developer access is only needed for whoever else runs agents against AWS
 - [ ] T1-6 Account A drift reconciled (manual SG ingress + return route) — live stack
       matches the template
 - [ ] T1-7 `scripts/register_legacy_targets.sh`
@@ -143,20 +145,43 @@ checks of the edge ALB._
 - [ ] Bad-wave behaviour verified live on a deployed target `app-orders` (closes with T3-B-8)
 
 ### 7. G0 contract freeze — Track 2 / A2 (+ A1) — **H+2**
-- [ ] T2-G0-1 `agents/common/models.py` (all CONTRACTS shapes + addendum)
-- [ ] T2-G0-2 `store.py` / `events.py` signatures
-- [ ] T2-G0-3 Agent entry-point stubs for all 4 agents
-- [ ] T2-G0-4 `fixtures/` (apps, tiers, edges, plan, summary, blueprint, cutovers,
-      traffic, `events.jsonl`)
-- [ ] T2-G0-5 `aws.py` signatures
-- [ ] T2-G0-6 Decisions D1 (`HARDCODED_IP` on pricing) and D2 (`MISSING_TAGS` ≠ Gray)
-      recorded; `Cloud_ENVIRONMENTS.md` §4 updated if D1 accepted
+- [x] T2-G0-1 `agents/common/models.py` (all CONTRACTS shapes + addendum). Additive,
+      defaulted fields the Discovery rules need: `network.sg_ids`, `sg_ingress[].source_sg`
+      (for the `sg_ref` signal), `storage.extra_volume_gb`, `license`,
+      `runtime.ami_age_reason`, `GoldenInputs.runtime`
+- [x] T2-G0-2 `store.py` / `events.py` — implemented, not just signatures (see §8)
+- [x] T2-G0-3 Agent entry-point stubs for all 4 agents (`agents/{discovery,planning,
+      blueprint,cutover}/__init__.py: run(...)`, exact addendum signatures, replay
+      fixtures through the real store + events)
+- [x] T2-G0-4 `fixtures/` (apps, tiers, edges, plan, summary, blueprint, cutovers,
+      traffic, `events.jsonl` with 54 events) — built through the models from the live
+      account; plus raw recorded responses in `fixtures/aws/` (3 original apps)
+- [x] T2-G0-5 `aws.py` — implemented, not just signatures (see §8)
+- [x] T2-G0-6 D1 accepted (`HARDCODED_IP` on pricing; `Cloud_ENVIRONMENTS.md` §4
+      updated) and D2 accepted (`MISSING_TAGS` auto-fixable, all 3 real apps GOLDEN)
+- [ ] Track 3 reviews `blueprint_app-catalog.json`, `cutover_*.json`,
+      `traffic_app-orders.json` and fixes them in their first PR
+- [ ] Re-record `fixtures/aws/` and extend `fixtures/apps.json` etc. with
+      `app-juice-shop` / `app-gitea` once Account A testing finishes (both are live, but
+      deliberately left out of the fixtures while they're being tested)
 
 ### 8. Shared framework
-- [ ] T2-FW-1 `store.py` implemented + tests (A2)
-- [ ] T2-FW-2 `events.py` implemented (A2)
-- [ ] T2-FW-3 `aws.py` implemented, two-hop `legacy()` works live (A1)
-- [ ] T2-FW-4 `pytest agents/` green on fixtures with `LLM_BACKEND=mock` (A2)
+- [x] T2-FW-1 `store.py` implemented + tests (idempotent upserts, `set_status`,
+      `traffic_window`, flags, `reset`); connection setup serialized after the
+      threaded test caught a real "database is locked" race
+- [x] T2-FW-2 `events.py` implemented (monotonic ids, JSON payloads, `emit_batch`,
+      `events_since`; 100 concurrent emits from 4 threads keep unique ids, 5/5 runs)
+- [x] T2-FW-3 `aws.py` implemented; two-hop `legacy()` verified live (recorded Account A
+      through `mig-agent-runner` → `mig-discovery-readonly`); self-refreshing creds;
+      scan scoped by `LEGACY_VPC_IDS` because Account A also runs unrelated workloads
+- [x] T2-FW-4 `pytest` (20 tests) green on fixtures in < 10 s — no LLM code exists yet,
+      so `LLM_BACKEND=mock` coverage comes with T4-L-4
+- [x] `requirements.txt` + `.env.example` section for the agents (T1-5's variables);
+      local `.env` is gitignored
+- [ ] Machine note: on the Account B owner's laptop, Python takes 26–36 s to load
+      certifi's CA bundle, so boto3 connections went idle and were dropped
+      (`SSL: UNEXPECTED_EOF`). Worked around with `AWS_CA_BUNDLE` → a 5-cert Amazon-roots
+      PEM (verification still on). Worth checking whether endpoint security causes it
 - [ ] T4-L-1 `llm.py` (bedrock / anthropic / off / mock, 20 s timeout) (C1)
 - [ ] T4-L-2 `tools.py` (registry, validation, allowlist guard) (C1)
 - [ ] T4-L-3 `loop.py` (`TOOL_CALL` / `LLM_FALLBACK` events) (C1)

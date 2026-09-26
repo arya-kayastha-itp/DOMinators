@@ -1,0 +1,95 @@
+[
+  {
+    "RouteTables": [
+      {
+        "Associations": [
+          {
+            "Main": true,
+            "RouteTableAssociationId": "rtbassoc-0ff206368e3c02b32",
+            "RouteTableId": "rtb-0411cea30b422c78e",
+            "AssociationState": {
+              "State": "associated"
+            }
+          }
+        ],
+        "PropagatingVgws": [],
+        "RouteTableId": "rtb-0411cea30b422c78e",
+        "Routes": [
+          {
+            "DestinationCidrBlock": "10.10.0.0/16",
+            "GatewayId": "local",
+            "Origin": "CreateRouteTable",
+            "State": "active"
+          }
+        ],
+        "Tags": [],
+        "VpcId": "vpc-0bc12dd6664275ce7",
+        "OwnerId": "533266974611"
+      },
+      {
+        "Associations": [
+          {
+            "Main": false,
+            "RouteTableAssociationId": "rtbassoc-0020d0c7b40faae2b",
+            "RouteTableId": "rtb-0f2a958079f7fffb3",
+            "SubnetId": "subnet-073d58f76a88aaa69",
+            "AssociationState": {
+              "State": "associated"
+            }
+          },
+          {
+            "Main": false,
+            "RouteTableAssociationId": "rtbassoc-0bf4063efbd75a714",
+            "RouteTableId": "rtb-0f2a958079f7fffb3",
+            "SubnetId": "subnet-0853e5e88286f0942",
+            "AssociationState": {
+              "State": "associated"
+            }
+          }
+        ],
+        "PropagatingVgws": [],
+        "RouteTableId": "rtb-0f2a958079f7fffb3",
+        "Routes": [
+          {
+            "DestinationCidrBlock": "10.10.0.0/16",
+            "GatewayId": "local",
+            "Origin": "CreateRouteTable",
+            "State": "active"
+          },
+          {
+            "DestinationCidrBlock": "10.20.0.0/16",
+            "Origin": "CreateRoute",
+            "State": "active",
+            "VpcPeeringConnectionId": "pcx-0ae4efd1f16fc19be"
+          },
+          {
+            "DestinationCidrBlock": "0.0.0.0/0",
+            "GatewayId": "igw-022c2ba86daa189c5",
+            "Origin": "CreateRoute",
+            "State": "active"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "mig-legacy-public-rt"
+          },
+          {
+            "Key": "aws:cloudformation:logical-id",
+            "Value": "PublicRouteTable"
+          },
+          {
+            "Key": "aws:cloudformation:stack-id",
+            "Value": "arn:aws:cloudformation:ap-south-1:533266974611:stack/mig-legacy-all/8b2b44f0-b935-11f1-8e4f-02809389843b"
+          },
+          {
+            "Key": "aws:cloudformation:stack-name",
+            "Value": "mig-legacy-all"
+          }
+        ],
+        "VpcId": "vpc-0bc12dd6664275ce7",
+        "OwnerId": "533266974611"
+      }
+    ]
+  }
+]

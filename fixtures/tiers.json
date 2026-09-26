@@ -1,0 +1,40 @@
+[
+  {
+    "app_id": "app-catalog",
+    "tier": "GOLDEN",
+    "score": 100,
+    "reasons": [
+      "stateless",
+      "matches golden_app pattern",
+      "all findings auto-fixable"
+    ],
+    "risk_summary": "Publicly exposed with SSH open to the world; every fix is standard and automatable.",
+    "decided_by": "rules"
+  },
+  {
+    "app_id": "app-pricing",
+    "tier": "GOLDEN",
+    "score": 90,
+    "reasons": [
+      "stateless",
+      "matches golden_app pattern",
+      "hardcoded IP in config (-10)",
+      "missing business tags: auto-fixed with flagged gaps"
+    ],
+    "risk_summary": "Publicly exposed; its catalog endpoint is a hardcoded IP that Blueprint rewrites to the ALB.",
+    "decided_by": "rules"
+  },
+  {
+    "app_id": "app-orders",
+    "tier": "GOLDEN",
+    "score": 90,
+    "reasons": [
+      "stateless",
+      "matches golden_app pattern",
+      "hardcoded IP in config (-10)",
+      "missing business tags: auto-fixed with flagged gaps"
+    ],
+    "risk_summary": "Publicly exposed; its pricing endpoint is a hardcoded IP that Blueprint rewrites to the ALB.",
+    "decided_by": "rules"
+  }
+]
