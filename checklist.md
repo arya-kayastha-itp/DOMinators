@@ -560,8 +560,14 @@ both themes, keyboard skip link, and the demo flows below.
       back; bug list sorted
 - [ ] Feature freeze (H+30)
 - [ ] Demo runs 3× in a row without a code change, under 6 minutes
-- [ ] Backup video recorded
+- [x] Backup video recorded: 3-minute submission video published
+      (https://youtu.be/_78jgGvV31k)
 - [ ] Q&A answers rehearsed (DEMO_SCRIPT.md)
+- [x] Root `README.md` (was still the unedited hackathon template) rewritten as the
+      real project overview, with the live console
+      (https://d360udbwjgf1ht.cloudfront.net/) and demo video linked at the top;
+      `docs/README.md` brought in sync (same links, `dashboard/` → `migration-accelerator-console/`
+      path fixes, apps-count wording no longer says "3")
 
 ---
 
