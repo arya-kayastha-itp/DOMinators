@@ -43,6 +43,11 @@ chmod 600 "$REL/.env"
 # State that must survive a redeploy: the SQLite store, generated terraform
 # dirs (reset + destroy walks them) and the provider cache.
 rm -rf "$REL/generated" && ln -s /opt/dominators/data/generated "$REL/generated"
+# generated/<app>/main.tf references ../../infra/... and golden_app reads
+# ../../../../app/server.py; terraform resolves those from the real
+# (data/generated) path, so data/ needs infra/ and app/ next to generated/.
+ln -sfn /opt/dominators/current/infra /opt/dominators/data/infra
+ln -sfn /opt/dominators/current/app /opt/dominators/data/app
 
 /opt/dominators/venv/bin/pip install --quiet --disable-pip-version-check -r "$REL/requirements.txt"
 

@@ -136,6 +136,10 @@ def run_on_box(ssm, instance_id: str, timeout_s: int = 900) -> None:
                     # First boot: wait for the bootstrap to install the deploy script.
                     "for i in $(seq 1 90); do [ -x /usr/local/bin/dominators-deploy ] && break; sleep 10; done",
                     "/usr/local/bin/dominators-deploy",
+                    # generated/ is a symlink into data/; terraform resolves the
+                    # blueprints' ../../infra and ../../../../app from there.
+                    "ln -sfn /opt/dominators/current/infra /opt/dominators/data/infra",
+                    "ln -sfn /opt/dominators/current/app /opt/dominators/data/app",
                     # nginx config ships with the release, so changes deploy like code.
                     "install -m 644 /opt/dominators/current/deploy/control-plane/nginx.conf /etc/nginx/nginx.conf",
                     "nginx -t && systemctl reload nginx",

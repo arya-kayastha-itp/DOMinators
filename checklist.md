@@ -518,6 +518,15 @@ checks of the edge ALB, and headless-browser tests of the console._
       but rate limited (4/min per viewer, 10/min overall). Tests in `test_orchestrator.py`
 - [x] T1-2 closed: `mig-tf-apply` got `iam:PassRole` on `mig-app-instance`, so the deployed box
       runs golden_app terraform through the role instead of an admin profile
+- [x] **Full demo flow verified on the live deployment** (2026-09-27, through the public API as
+      the buttons call it): reset + destroy (52 s, laptop-created instances destroyed via
+      re-rendered configs) → discovery + planning (16 s) → apply app-catalog (52 s) → fix & retry
+      `-replace` (5.4 min) → cutover app-catalog MIGRATED (share 0.11 / 0.52 / 1.0, 0% errors) →
+      bad wave app-orders rolled back automatically at 10% (error_rate 0.10 > 0.02, ALB 100/0) →
+      final reset + destroy (clean). Two bugs found and fixed on the way: blueprints couldn't
+      resolve `../../infra` through the `generated/` symlink (data/ now links infra/ and app/ to
+      the current release), and the box role lacked read-only `tag:GetResources` for the
+      managed-tag check — the watchdog rolled that failed cutover back within 5 s, as designed
 - [ ] Teardown after the event: `terraform destroy -target=module.control_plane` (and drop
       `extra_ingress_ports`), plus Reset + destroy for the golden apps
 - [ ] T4-S-1 `Makefile` — Windows demo host, so `scripts/dev.ps1` starts orchestrator + console

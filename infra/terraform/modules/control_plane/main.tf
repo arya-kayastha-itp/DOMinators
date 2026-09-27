@@ -102,6 +102,14 @@ data "aws_iam_policy_document" "this" {
     }
   }
 
+  # aws.assert_managed() (before every ALB weight change) reads the target's
+  # tags through the Resource Groups Tagging API with this role. Read-only.
+  statement {
+    sid       = "ReadTagsForManagedCheck"
+    actions   = ["tag:GetResources"]
+    resources = ["*"]
+  }
+
   statement {
     sid       = "ReadReleases"
     actions   = ["s3:GetObject", "s3:ListBucket"]
