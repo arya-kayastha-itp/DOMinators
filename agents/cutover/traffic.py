@@ -29,27 +29,41 @@ REQUEST_TIMEOUT_S = 3.0
 MAX_WORKERS = 8
 
 
-def _served_by(body: bytes) -> ServedBy:
+SERVED_BY_HEADER = "X-Served-By"
+
+
+def _served_by(body: bytes, header: str | None = None, status: int = 0, unmarked_is_legacy: bool = False) -> ServedBy:
+    """Which side answered. Order: the X-Served-By header (golden_app's
+    juice-shop runtime adds it — the stock image's HTML can't say), then a JSON
+    body's `served_by` (the demo server). `unmarked_is_legacy` is for apps
+    where only the target marks its responses: a successful answer with no
+    marker can only have come from legacy, since the listener rule has just
+    the two target groups. An unmarked error stays `unknown`."""
+    if header:
+        try:
+            return ServedBy(header.strip().lower())
+        except ValueError:
+            return ServedBy.UNKNOWN
     try:
         value = json.loads(body).get("served_by")
-    except Exception:  # noqa: BLE001 - a non-JSON body is `unknown`, not a crash
-        return ServedBy.UNKNOWN
-    try:
         return ServedBy(value)
-    except ValueError:
-        return ServedBy.UNKNOWN
+    except Exception:  # noqa: BLE001 - non-JSON body / unknown value
+        pass
+    if unmarked_is_legacy and 200 <= status < 400:
+        return ServedBy.LEGACY
+    return ServedBy.UNKNOWN
 
 
-def _one_request(url: str) -> tuple[int, float, ServedBy]:
+def _one_request(url: str, unmarked_is_legacy: bool = False) -> tuple[int, float, ServedBy]:
     start = time.monotonic()
     try:
         with urllib.request.urlopen(url, timeout=REQUEST_TIMEOUT_S) as resp:
-            body, status = resp.read(), resp.status
+            body, status, header = resp.read(), resp.status, resp.headers.get(SERVED_BY_HEADER)
     except urllib.error.HTTPError as exc:
-        body, status = exc.read(), exc.code
+        body, status, header = exc.read(), exc.code, exc.headers.get(SERVED_BY_HEADER) if exc.headers else None
     except Exception:  # noqa: BLE001 - connection refused/timeout -> unknown, not a crash
         return 0, (time.monotonic() - start) * 1000, ServedBy.UNKNOWN
-    return status, (time.monotonic() - start) * 1000, _served_by(body)
+    return status, (time.monotonic() - start) * 1000, _served_by(body, header, status, unmarked_is_legacy)
 
 
 class TrafficGenerator:
@@ -61,11 +75,13 @@ class TrafficGenerator:
         *,
         rate_per_s: float = DEFAULT_RATE_PER_S,
         run_id: str | None = None,
+        unmarked_is_legacy: bool = False,
     ):
         self.app_id = app_id
         self.url = base_url.rstrip("/") + "/" + path.lstrip("/")
         self.rate_per_s = rate_per_s
         self.run_id = run_id
+        self.unmarked_is_legacy = unmarked_is_legacy
         self._stop = threading.Event()
         self._buffer: list[TrafficSample] = []
         self._lock = threading.Lock()
@@ -87,7 +103,7 @@ class TrafficGenerator:
             store.insert_traffic(batch)
 
     def _fire(self) -> None:
-        status, latency_ms, served_by = _one_request(self.url)
+        status, latency_ms, served_by = _one_request(self.url, self.unmarked_is_legacy)
         self._record(status, latency_ms, served_by)
 
     def _loop(self) -> None:

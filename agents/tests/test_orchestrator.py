@@ -112,16 +112,38 @@ def test_synthetic_wave_blueprints_and_simulates_every_app(client):
     assert {"BLUEPRINT_DRY_RUN", "MIGRATED"} <= types
 
 
-def test_capabilities_refuse_live_cutover_without_served_by(monkeypatch):
+def test_capabilities_know_how_each_runtime_marks_its_side(monkeypatch):
     monkeypatch.setattr(runs.aws, "target_outputs", lambda: {
         "app_routes": {"app-catalog": {"runtime": "demo-server", "path_prefix": "/catalog"},
-                       "app-juice-shop": {"runtime": "juice-shop", "path_prefix": "", "listener_port": 3000}},
-        "listener_rule_arns": {"app-catalog": "arn:c", "app-juice-shop": "arn:j"},
+                       "app-juice-shop": {"runtime": "juice-shop", "path_prefix": "", "listener_port": 3000},
+                       "app-mystery": {"runtime": "something-else", "path_prefix": "/m"}},
+        "listener_rule_arns": {"app-catalog": "arn:c", "app-juice-shop": "arn:j", "app-mystery": "arn:m"},
     })
     caps = runs.capabilities()
-    assert caps["app-catalog"]["cutover"] and caps["app-catalog"]["provision"]
-    assert caps["app-juice-shop"]["provision"] and not caps["app-juice-shop"]["cutover"]
-    assert "served_by" in caps["app-juice-shop"]["reason"]
+    assert caps["app-catalog"]["cutover"] and caps["app-catalog"]["marker"] == "body"
+    assert caps["app-juice-shop"]["cutover"] and caps["app-juice-shop"]["marker"] == "header"
+    assert caps["app-mystery"]["provision"] and not caps["app-mystery"]["cutover"]
+    assert "which side" in caps["app-mystery"]["reason"]
+
+
+def test_served_by_reads_the_header_body_or_infers_legacy():
+    from agents.cutover.traffic import _served_by
+    from agents.common.models import ServedBy
+    assert _served_by(b"<html>", "target", 200) == ServedBy.TARGET          # nginx marker
+    assert _served_by(b"<html>", "target", 502) == ServedBy.TARGET          # marked errors count against target
+    assert _served_by(b'{"served_by": "legacy"}') == ServedBy.LEGACY       # demo server body
+    assert _served_by(b"<html>", None, 200) == ServedBy.UNKNOWN            # no inference unless asked
+    assert _served_by(b"<html>", None, 200, unmarked_is_legacy=True) == ServedBy.LEGACY
+    assert _served_by(b"<html>", None, 500, unmarked_is_legacy=True) == ServedBy.UNKNOWN  # unmarked error: can't say
+
+
+def test_retry_allows_re_applying_a_provisioned_app():
+    app = next(a for a in fixtures.apps() if a.app_id == "app-catalog")
+    store.upsert_apps([app.model_copy(update={"status": AppStatus.PROVISIONED})])
+    runs.check_retry("app-catalog")
+    store.set_status("app-catalog", AppStatus.PLANNED)
+    with pytest.raises(runs.Rejected):
+        runs.check_retry("app-catalog")
 
 
 def test_watchdog_rolls_back_a_cutover_whose_heartbeat_died(monkeypatch):
@@ -210,7 +232,7 @@ def test_real_cutover_runs_behind_a_traffic_generator(monkeypatch):
     seen = {}
 
     class FakeGen:
-        def __init__(self, app_id, base, path):
+        def __init__(self, app_id, base, path, unmarked_is_legacy=False):
             seen.update(app_id=app_id, url=base + path)
 
         def __enter__(self):
@@ -222,6 +244,7 @@ def test_real_cutover_runs_behind_a_traffic_generator(monkeypatch):
 
     monkeypatch.setattr(runs, "TrafficGenerator", FakeGen)
     monkeypatch.setattr(runs, "traffic_url", lambda app_id: ("http://alb", "/catalog/"))
+    monkeypatch.setattr(runs, "capabilities", lambda: {"app-catalog": {"marker": "body"}})
     monkeypatch.setattr(runs.cutover, "run", lambda app_id: seen.setdefault("ran", app_id))
     monkeypatch.setattr(runs, "WARMUP_S", 0)
     monkeypatch.setattr(runs, "TAIL_S", 0)

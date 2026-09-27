@@ -98,7 +98,7 @@ export function BlueprintView() {
   const parked = status === 'PARKED'
   const canDry = !!app && !parked && status !== 'MIGRATED' && status !== 'CUTTING_OVER' && status !== 'TIERED' && status !== 'DISCOVERED' && !busy
   const canApply = !!cap?.provision && canDry && status !== 'PROVISIONED' && status !== 'ROLLED_BACK'
-  const canRetry = !!cap?.provision && (status === 'ROLLED_BACK' || status === 'FAILED') && !busy
+  const canRetry = !!cap?.provision && (status === 'ROLLED_BACK' || status === 'FAILED' || status === 'PROVISIONED') && !busy
   const applyWhy = parked ? 'Parked (RED): never rehosted' : !cap?.provision ? 'No target route in Account B' : busy ? 'A run is in progress' : status === 'PROVISIONED' ? 'Already provisioned — cut it over next' : status === 'ROLLED_BACK' ? 'Use Fix & retry (apply -replace)' : !canDry ? `Not in a plannable state (${status ?? '—'})` : null
 
   const before = bp?.diff.before.split('\n') ?? []
@@ -128,7 +128,7 @@ export function BlueprintView() {
             <span><button disabled={!canDry} onClick={() => runBlueprint(appId, false)} className="inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-3 text-[13px] font-medium transition hover:border-border-strong disabled:opacity-50"><Wand2 className="size-4" />Generate (dry run)</button></span>
           </Tip>
           {canRetry ? (
-            <button onClick={async () => { if (badWaveOn) await setBadWave(false, appId); runRetry(appId) }} className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3.5 text-[13px] font-medium text-primary-foreground shadow-elev-1 transition hover:brightness-110"><Wrench className="size-4" />{badWaveOn ? 'Disarm bad wave & retry' : 'Fix & retry (-replace)'}</button>
+            <button onClick={async () => { if (badWaveOn) await setBadWave(false, appId); runRetry(appId) }} className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3.5 text-[13px] font-medium text-primary-foreground shadow-elev-1 transition hover:brightness-110"><Wrench className="size-4" />{status === 'PROVISIONED' ? 'Re-apply (-replace)' : badWaveOn ? 'Disarm bad wave & retry' : 'Fix & retry (-replace)'}</button>
           ) : (
             <Tip content={applyWhy ?? 'Real terraform apply into Account B, then wait for the target group to report healthy'}>
               <span><button disabled={!canApply} onClick={() => runBlueprint(appId, true)} className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3.5 text-[13px] font-medium text-primary-foreground shadow-elev-1 transition hover:brightness-110 disabled:opacity-50">

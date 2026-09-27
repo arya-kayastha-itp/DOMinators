@@ -132,11 +132,18 @@ def routes() -> dict:
         return {}
 
 
+# How each golden_app runtime lets the cutover tell which side answered:
+#   body   — the demo server returns JSON with `served_by` on both sides;
+#   header — only the target marks responses (golden_app's juice-shop runtime
+#            puts nginx in front adding `X-Served-By: target`), so an unmarked
+#            success can only be legacy.
+SIDE_MARKER = {"demo-server": "body", "juice-shop": "header"}
+
+
 def capabilities() -> dict[str, dict]:
     """Per real app: can it be provisioned / cut over for real, and if not why.
-    Cutover needs the app to answer with a `served_by` field (the demo server
-    does; Juice Shop's stock image doesn't), or the traffic-share gate can't
-    tell legacy from target and would always roll back."""
+    Cutover needs a way to tell which side answered each request, or the
+    traffic-share gate can't tell legacy from target and would always roll back."""
     out = {}
     try:
         rule_arns = aws.target_outputs().get("listener_rule_arns", {}) or {}
@@ -144,15 +151,15 @@ def capabilities() -> dict[str, dict]:
         rule_arns = {}
     for app_id, route in routes().items():
         has_rule = app_id in rule_arns
-        speaks_served_by = route.get("runtime", "demo-server") == "demo-server"
+        runtime = route.get("runtime", "demo-server")
+        marker = SIDE_MARKER.get(runtime)
         reason = None
         if not has_rule:
             reason = "no listener rule in Account B"
-        elif not speaks_served_by:
-            reason = (f"{route.get('runtime')} responses carry no served_by field, so the "
-                      "traffic-share gate can't tell legacy from target")
-        out[app_id] = {"provision": has_rule, "cutover": has_rule and speaks_served_by, "reason": reason,
-                       "runtime": route.get("runtime"), "path_prefix": route.get("path_prefix"),
+        elif not marker:
+            reason = f"{runtime} responses don't say which side served them, so the traffic-share gate can't work"
+        out[app_id] = {"provision": has_rule, "cutover": has_rule and bool(marker), "reason": reason,
+                       "marker": marker, "runtime": runtime, "path_prefix": route.get("path_prefix"),
                        "listener_port": route.get("listener_port")}
     return out
 
@@ -211,9 +218,12 @@ def check_cutover(app_id: str):
 
 
 def check_retry(app_id: str):
+    """Re-apply with -replace: after a rollback/failure (fix & retry), or on a
+    PROVISIONED app whose golden pattern changed (user-data only takes effect
+    on a fresh instance)."""
     app = _app(app_id)
-    if app.source != Source.REAL or app.status not in (AppStatus.ROLLED_BACK, AppStatus.FAILED):
-        raise Rejected(f"fix & retry is for a real app that ROLLED_BACK or FAILED ({app_id} is {app.status.value})")
+    if app.source != Source.REAL or app.status not in (AppStatus.ROLLED_BACK, AppStatus.FAILED, AppStatus.PROVISIONED):
+        raise Rejected(f"re-apply is for a real app that is PROVISIONED, ROLLED_BACK or FAILED ({app_id} is {app.status.value})")
     return app
 
 
@@ -235,14 +245,18 @@ def do_blueprint(app_id: str, apply: bool) -> None:
 
 
 def do_retry(app_id: str) -> None:
-    notify(f"Fix & retry for {app_id} · re-render, terraform apply -replace", app_id, stage="blueprint_start", apply=True)
+    was = {a.app_id: a.status for a in store.get_apps()}.get(app_id)
+    label = "Re-apply" if was == AppStatus.PROVISIONED else "Fix & retry"
+    notify(f"{label} for {app_id} · re-render, terraform apply -replace", app_id, stage="blueprint_start", apply=True)
     blueprint.retry(app_id)
 
 
 def do_cutover(app_id: str) -> None:
     base, path = traffic_url(app_id)
-    notify(f"Traffic generator → {base}{path} at ~20 req/s", app_id)
-    with TrafficGenerator(app_id, base, path):
+    header_marked = capabilities().get(app_id, {}).get("marker") == "header"
+    notify(f"Traffic generator → {base}{path} at ~20 req/s"
+           + (" · target identified by its X-Served-By header" if header_marked else ""), app_id)
+    with TrafficGenerator(app_id, base, path, unmarked_is_legacy=header_marked):
         time.sleep(WARMUP_S)
         cutover.run(app_id)
         time.sleep(TAIL_S)
