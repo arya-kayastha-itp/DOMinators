@@ -1,8 +1,16 @@
-# Cloud Migration Accelerator — Hackathon Build
+<div align="center">
 
-An agentic pipeline that migrates applications from an old, insecure AWS environment to a new, hardened one, fast enough to make "done by end of 2027" believable.
+# Cloud Migration Accelerator
+### Hackathon Build
 
-**[Live console →](https://d360udbwjgf1ht.cloudfront.net/)** · **[3-minute demo video →](https://youtu.be/_78jgGvV31k)**
+An agentic pipeline that migrates applications from an old, insecure AWS environment to a new, hardened one — fast enough to make "done by end of 2027" believable.
+
+[![Live Console](https://img.shields.io/badge/Live_Console-View_App-2ea44f?style=for-the-badge&logo=amazonaws&logoColor=white)](https://d360udbwjgf1ht.cloudfront.net/)
+[![Demo Video](https://img.shields.io/badge/Demo_Video-3_min-red?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/_78jgGvV31k)
+
+</div>
+
+---
 
 We prove it two ways at once:
 
