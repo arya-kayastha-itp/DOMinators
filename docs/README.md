@@ -2,13 +2,15 @@
 
 An agentic pipeline that migrates applications from an old, insecure AWS environment to a new, hardened one, fast enough to make "done by end of 2027" believable.
 
+**[Live console →](https://d360udbwjgf1ht.cloudfront.net/)** · **[3-minute demo video →](https://youtu.be/_78jgGvV31k)**
+
 We prove it two ways at once:
 
-- **Real slice.** 3 small stateless apps actually move between **two real AWS accounts**, with traffic shifted live.
+- **Real slice.** Real apps actually move between **two real AWS accounts**, with traffic shifted live.
 - **Synthetic scale.** ~1,000 generated app records run through the same agents so the dashboard shows fleet-scale planning.
 
 ```
-Real slice (Account A, 3 live apps) ─┐
+Real slice (Account A, real apps) ───┐
                                      ├─► Discovery ─► Planning ─► Blueprint/IaC ─► Cutover ─┬─► New environment (Account B)
 Synthetic scale (~1,000 records) ────┘                                                     └─► Dashboard (real + sim)
 ```
@@ -42,16 +44,17 @@ Data migration, decommissioning, licensing and notifications are **out of scope*
 | [FLOW.md](FLOW.md) | Everyone. End-to-end flow, app lifecycle, sequence diagrams |
 | [CONTRACTS.md](CONTRACTS.md) | Agent devs. Shared JSON schemas, **frozen at G0** |
 | [DEMO_SCRIPT.md](DEMO_SCRIPT.md) | Presenter. 6-minute judge demo, minute by minute |
+| [VIDEO_SCRIPT_3MIN.md](VIDEO_SCRIPT_3MIN.md) | Presenter. Script behind the 3-minute submission video |
 | [infra/README.md](../infra/README.md) | Infra. Account setup, Terraform layout, teardown |
 | [ACCOUNT_A_SETUP.md](../infra/cloudformation/legacy/ACCOUNT_A_SETUP.md) | Account A (legacy) build record — CloudFormation |
 | [ACCOUNT_B_SETUP.md](../infra/terraform/ACCOUNT_B_SETUP.md) | Account B (target) build record — Terraform |
-| [agents/README.md](../agents/README.md) | A1–A4. Shared agent framework, Bedrock, tool-calling pattern |
+| [agents/README.md](../agents/README.md) | A1–A4. Shared agent framework, LLM backends, tool-calling pattern |
 | [agents/discovery/README.md](../agents/discovery/README.md) | A1 |
 | [agents/planning/README.md](../agents/planning/README.md) | A2 |
 | [agents/blueprint/README.md](../agents/blueprint/README.md) | A3 |
 | [agents/cutover/README.md](../agents/cutover/README.md) | A4 |
 | [data/README.md](../data/README.md) | A2. Synthetic fleet generator |
-| [dashboard/README.md](../dashboard/README.md) | C2. Dashboard views and API |
+| [migration-accelerator-console/README.md](../migration-accelerator-console/README.md) | C2. Dashboard views and API |
 
 ## Repo layout
 
@@ -71,7 +74,8 @@ DOMinators/                  # repo root — all code lives here, docs/ holds do
 ├── fixtures/                # contract-shaped sample data (G0)
 ├── orchestrator/            # FastAPI: runs agents, serves state + SSE events
 ├── data/                    # target_outputs.json, fleet generator + fleet.json
-├── dashboard/               # React UI
+├── migration-accelerator-console/  # Next.js dashboard (deployed to the live console linked above)
+├── dashboard/               # earlier React UI
 └── generated/               # Terraform written by the Blueprint agent (git-ignored)
 ```
 
@@ -87,8 +91,10 @@ python data/generate_fleet.py --count 1000 --seed 42
 
 # 3. Orchestrator + dashboard
 uvicorn orchestrator.main:app --port 8000
-cd dashboard && npm run dev
+cd migration-accelerator-console && npm run dev
 ```
+
+Windows demo host: `scripts/dev.ps1` starts both the orchestrator and the console.
 
 ## Teardown (do not skip) — target before legacy
 
