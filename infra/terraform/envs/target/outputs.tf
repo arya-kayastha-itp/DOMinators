@@ -71,3 +71,19 @@ output "app_routes" {
 output "app_hello_private_ip" {
   value = module.app_hello.private_ip
 }
+
+output "control_plane_url" {
+  value = module.control_plane.url
+}
+
+output "control_plane_instance_id" {
+  value = module.control_plane.instance_id
+}
+
+output "control_plane_releases_bucket" {
+  value = module.control_plane.releases_bucket
+}
+
+output "control_plane_ssm_prefix" {
+  value = module.control_plane.ssm_prefix
+}

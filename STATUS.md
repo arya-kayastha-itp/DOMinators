@@ -8,6 +8,12 @@ detailed record._
 
 ## Working
 
+- **Deployed (public)** — https://d360udbwjgf1ht.cloudfront.net : the console +
+  orchestrator on a control-plane box in Account B behind CloudFront. Anyone
+  with the link watches live (read-only); actions need the operator key (SSM
+  `/mig/control-plane/operator_key`). Redeploy with
+  `python scripts/deploy_control_plane.py`.
+
 - **Orchestrator + console (Track 4, built by A2)** — `scripts\dev.ps1` starts
   `uvicorn orchestrator.main:app` (:8000) and the console (:3000). FastAPI with
   every CONTRACTS endpoint, background runs with per-app 409 locks, lifecycle

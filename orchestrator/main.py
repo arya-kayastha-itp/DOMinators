@@ -10,13 +10,15 @@ of the generator's real requests) and /copilot.
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import os
+import threading
 import time
-from collections import defaultdict
+from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
@@ -58,6 +60,58 @@ async def _busy(_req, exc):
 @app.exception_handler(runs.Rejected)
 async def _rejected(_req, exc):
     return JSONResponse(status_code=409, content={"detail": str(exc), "kind": "lifecycle"})
+
+
+# ---------------------------------------------------------------- operator key
+# The deployed console is public and read-only for viewers; anything that
+# changes AWS or the store needs the operator key (OPERATOR_KEY env). Unset =
+# open, for local development.
+
+
+def _operator_key() -> str:
+    return os.getenv("OPERATOR_KEY", "").strip()
+
+
+def _key_ok(request: Request) -> bool:
+    key = _operator_key()
+    return not key or hmac.compare_digest(request.headers.get("x-operator-key", "").encode(), key.encode())
+
+
+def require_operator(request: Request) -> None:
+    if not _key_ok(request):
+        raise HTTPException(401, "operator key required — this action changes AWS or the migration state")
+
+
+@app.get("/auth")
+def auth(request: Request):
+    return {"operator_required": bool(_operator_key()), "valid": _key_ok(request)}
+
+
+# Copilot is open to viewers, so it's rate limited to stay inside the LLM's
+# free-tier quota (~15 req/min) and keep one visitor from using it all.
+COPILOT_PER_CLIENT, COPILOT_GLOBAL, COPILOT_WINDOW_S = 4, 10, 60
+_copilot_hits: dict[str, deque] = defaultdict(deque)
+_copilot_lock = threading.Lock()
+
+
+def _client_ip(request: Request) -> str:
+    fwd = request.headers.get("x-forwarded-for", "")
+    return fwd.split(",")[0].strip() if fwd else (request.client.host if request.client else "?")
+
+
+def _copilot_allowed(request: Request) -> bool:
+    if _key_ok(request) and _operator_key():
+        return True  # the operator is never throttled
+    now = time.monotonic()
+    with _copilot_lock:
+        for q in (_copilot_hits["*"], _copilot_hits[_client_ip(request)]):
+            while q and now - q[0] > COPILOT_WINDOW_S:
+                q.popleft()
+        if len(_copilot_hits["*"]) >= COPILOT_GLOBAL or len(_copilot_hits[_client_ip(request)]) >= COPILOT_PER_CLIENT:
+            return False
+        _copilot_hits["*"].append(now)
+        _copilot_hits[_client_ip(request)].append(now)
+    return True
 
 
 def _accepted(run_id: str) -> JSONResponse:
@@ -315,7 +369,7 @@ class PlanningBody(BaseModel):
     waves_per_week: int = Field(3, ge=1, le=5)
 
 
-@app.post("/runs/discovery")
+@app.post("/runs/discovery", dependencies=[Depends(require_operator)])
 def run_discovery(body: DiscoveryBody | None = None):
     # Discovery re-tiers every app (status -> TIERED), so it must not run
     # underneath a blueprint/cutover that's moving an app forward.
@@ -324,7 +378,7 @@ def run_discovery(body: DiscoveryBody | None = None):
     return _accepted(runs.submit("discovery", ["discovery", "store"], runs.do_discovery, (body or DiscoveryBody()).scope))
 
 
-@app.post("/runs/planning")
+@app.post("/runs/planning", dependencies=[Depends(require_operator)])
 def run_planning(body: PlanningBody | None = None):
     b = body or PlanningBody()
     if not store.get_apps():
@@ -332,26 +386,26 @@ def run_planning(body: PlanningBody | None = None):
     return _accepted(runs.submit("planning", ["planning", "store"], runs.do_planning, b.capacity_per_wave, b.waves_per_week))
 
 
-@app.post("/runs/blueprint/{app_id}")
+@app.post("/runs/blueprint/{app_id}", dependencies=[Depends(require_operator)])
 def run_blueprint(app_id: str, apply: bool = False):
     app_ = runs.check_blueprint(app_id, apply)
     apply = apply and app_.source == Source.REAL
     return _accepted(runs.submit("blueprint", [f"app:{app_id}"], runs.do_blueprint, app_id, apply))
 
 
-@app.post("/runs/retry/{app_id}")
+@app.post("/runs/retry/{app_id}", dependencies=[Depends(require_operator)])
 def run_retry(app_id: str):
     runs.check_retry(app_id)
     return _accepted(runs.submit("retry", [f"app:{app_id}"], runs.do_retry, app_id))
 
 
-@app.post("/runs/cutover/{app_id}")
+@app.post("/runs/cutover/{app_id}", dependencies=[Depends(require_operator)])
 def run_cutover(app_id: str):
     runs.check_cutover(app_id)
     return _accepted(runs.submit("cutover", [f"app:{app_id}"], runs.do_cutover, app_id))
 
 
-@app.post("/runs/wave/{n}")
+@app.post("/runs/wave/{n}", dependencies=[Depends(require_operator)])
 def run_wave(n: int):
     plan_ = store.get_plan()
     if plan_ is None:
@@ -386,19 +440,19 @@ class CopilotBody(BaseModel):
     question: str = Field(..., min_length=1, max_length=500)
 
 
-@app.post("/demo/bad-wave")
+@app.post("/demo/bad-wave", dependencies=[Depends(require_operator)])
 def bad_wave(body: BadWaveBody):
     return {"bad_wave": runs.set_bad_wave(body.app_id, body.enabled)}
 
 
-@app.post("/demo/weights/{app_id}")
+@app.post("/demo/weights/{app_id}", dependencies=[Depends(require_operator)])
 def manual_weight(app_id: str, body: WeightBody):
     runs.set_manual_weight(app_id, body.target_pct)
     _weights_cache.pop(app_id, None)
     return {"ok": True}
 
 
-@app.post("/demo/reset")
+@app.post("/demo/reset", dependencies=[Depends(require_operator)])
 def reset(destroy: bool = False):
     if runs.running():
         raise runs.Busy(f"can't reset while running: {', '.join(runs.running())}")
@@ -406,5 +460,7 @@ def reset(destroy: bool = False):
 
 
 @app.post("/copilot")
-def ask(body: CopilotBody):
+def ask(body: CopilotBody, request: Request):
+    if not _copilot_allowed(request):
+        raise HTTPException(429, "Copilot is busy — too many questions this minute. Try again shortly.")
     return copilot.answer(body.question)

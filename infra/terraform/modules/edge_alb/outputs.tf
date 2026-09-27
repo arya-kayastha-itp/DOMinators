@@ -21,3 +21,7 @@ output "target_group_arns" {
 output "legacy_target_group_arns" {
   value = { for k, v in aws_lb_target_group.legacy : k => v.arn }
 }
+
+output "alb_arn" {
+  value = aws_lb.this.arn
+}

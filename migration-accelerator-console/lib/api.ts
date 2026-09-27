@@ -3,6 +3,7 @@
 import type { AppStatus, BlueprintResult, ConsoleEvent, CutoverRun, Edge, Tier, WavePlan } from '@/lib/contracts'
 import type { FleetApp } from '@/lib/meta'
 
+// Deployed builds set NEXT_PUBLIC_API_BASE=/api (same origin, behind CloudFront).
 export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000').replace(/\/$/, '')
 
 export class ApiError extends Error {
@@ -11,12 +12,19 @@ export class ApiError extends Error {
   }
 }
 
+// Operator key for actions that change AWS / the store (the server enforces it).
+let operatorKey = ''
+export const setOperatorKey = (k: string) => { operatorKey = k }
+
 async function call<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
   let res: Response
+  const headers: Record<string, string> = {}
+  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  if (operatorKey) headers['X-Operator-Key'] = operatorKey
   try {
     res = await fetch(`${API_BASE}${path}`, {
       method,
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      headers,
       body: body === undefined ? undefined : JSON.stringify(body),
       cache: 'no-store',
     })
@@ -97,6 +105,7 @@ export type RunAccepted = { run_id: string; status: 'STARTED' }
 // ---------------------------------------------------------------- endpoints
 
 export const api = {
+  auth: () => get<{ operator_required: boolean; valid: boolean }>('/auth'),
   health: () => get<{ ok: boolean; llm_backend: string; llm_model: string | null; terraform: boolean; target_outputs: boolean }>('/healthz'),
   summary: () => get<Summary>('/summary'),
   demoState: () => get<DemoState>('/demo/state'),

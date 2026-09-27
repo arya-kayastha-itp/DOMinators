@@ -7,7 +7,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { api, API_BASE, ApiError, type DemoState, type Summary } from '@/lib/api'
+import { api, API_BASE, ApiError, setOperatorKey, type DemoState, type Summary } from '@/lib/api'
 import type { AgentName, AppStatus, BlueprintResult, ConsoleEvent, CutoverRun, Edge, WavePlan } from '@/lib/contracts'
 import type { FleetApp } from '@/lib/meta'
 
@@ -39,6 +39,11 @@ type Ctx = {
   env: Env
   setEnv: (e: Env) => void
   demoMode: boolean
+  // View-only unless the operator key is entered (deployed console); local dev has no key.
+  readOnly: boolean
+  operatorRequired: boolean
+  unlock: (key: string) => Promise<boolean>
+  lock: () => void
   runDiscovery: () => Promise<boolean>
   runPlanning: (capacity?: number, wavesPerWeek?: number) => Promise<boolean>
   runBlueprint: (appId: string, apply: boolean) => Promise<boolean>
@@ -74,11 +79,36 @@ export function ConsoleProvider({ children }: { children: React.ReactNode }) {
   const [cutovers, setCutovers] = useState<Record<string, CutoverRun>>({})
   const [env, setEnv] = useState<Env>('target')
   const [demoMode, setDemoMode] = useState(false)
+  const [auth, setAuth] = useState<{ required: boolean; valid: boolean }>({ required: false, valid: true })
   const lastId = useRef(0)
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   useEffect(() => {
     setDemoMode(new URLSearchParams(window.location.search).get('demo') === '1')
+    let stored = ''
+    try { stored = sessionStorage.getItem('mac.operatorKey') ?? '' } catch { /* storage blocked */ }
+    setOperatorKey(stored)
+    api.auth().then(a => setAuth({ required: a.operator_required, valid: a.valid })).catch(() => {})
+  }, [])
+
+  const unlock = useCallback(async (key: string) => {
+    setOperatorKey(key.trim())
+    try {
+      const a = await api.auth()
+      setAuth({ required: a.operator_required, valid: a.valid })
+      if (a.valid) { try { sessionStorage.setItem('mac.operatorKey', key.trim()) } catch { /* ignore */ } toast.success('Operator mode unlocked') }
+      else { setOperatorKey(''); toast.error('That operator key is not valid') }
+      return a.valid
+    } catch {
+      setOperatorKey('')
+      toast.error('Could not check the key — orchestrator unreachable')
+      return false
+    }
+  }, [])
+  const lock = useCallback(() => {
+    setOperatorKey('')
+    try { sessionStorage.removeItem('mac.operatorKey') } catch { /* ignore */ }
+    setAuth(a => ({ ...a, valid: !a.required }))
   }, [])
 
   // ---------------------------------------------------------------- loaders
@@ -185,6 +215,11 @@ export function ConsoleProvider({ children }: { children: React.ReactNode }) {
       loadDemo()
       return true
     } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        toast.error(`${label} needs the operator key`, { description: 'This console is view-only for visitors. Unlock operator mode in the top bar.' })
+        setAuth(a => ({ ...a, valid: false }))
+        return false
+      }
       const msg = err instanceof ApiError ? err.message : String(err)
       toast.error(`${label}: ${msg}`)
       return false
@@ -196,6 +231,9 @@ export function ConsoleProvider({ children }: { children: React.ReactNode }) {
     agents, isRunning,
     badWave: !!demo?.bad_wave?.['app-orders'],
     env, setEnv, demoMode,
+    readOnly: auth.required && !auth.valid,
+    operatorRequired: auth.required,
+    unlock, lock,
     runDiscovery: () => act('Discovery', api.runDiscovery, 'Discovery started — scanning Account A'),
     runPlanning: (capacity, wpw) => act('Planning', () => api.runPlanning(capacity ?? plan?.capacity_per_wave ?? 40, wpw ?? plan?.waves_per_week ?? 3), 'Planning started'),
     runBlueprint: (id, apply) => act('Blueprint', () => api.runBlueprint(id, apply), apply ? `Blueprint + terraform apply started for ${id}` : `Blueprint dry run started for ${id}`),

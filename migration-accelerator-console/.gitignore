@@ -14,3 +14,5 @@ node_modules
 .next/
 .DS_Store
 *.tsbuildinfo
+# Static export for the deployed control plane (scripts/deploy_control_plane.py)
+out/

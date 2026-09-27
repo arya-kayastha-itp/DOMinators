@@ -505,6 +505,21 @@ checks of the edge ALB, and headless-browser tests of the console._
       on the slow A2 laptop (passes alone); pre-existing
 - [ ] Golden instances for catalog / pricing / orders / juice-shop are running in Account B and
       all four carry 100% of their traffic — Reset + destroy from the console after the demo
+- [x] **Deployed control plane** (2026-09-27) — `infra/terraform/modules/control_plane`, wired in
+      `envs/target` (17 added, 1 in-place change, 0 destroyed): a t3.small in a private subnet
+      (nginx serving the static console + the orchestrator at `/api`, systemd, terraform installed
+      and checksum-verified), reached only through CloudFront (HTTPS, caching off) → the edge ALB
+      on port 8088, whose listener forwards only requests carrying a secret origin header.
+      Instance role can only assume mig-agent-runner / mig-tf-apply, read its SSM secrets and the
+      release bucket (+ Session Manager); no SSH. `.env` lives in SSM as a SecureString.
+      `scripts/deploy_control_plane.py` builds, bundles, uploads and restarts via SSM
+- [x] Public console is **read-only for visitors**; every action endpoint needs the operator key
+      (`X-Operator-Key`, SSM `/mig/control-plane/operator_key`), enforced server-side; Copilot open
+      but rate limited (4/min per viewer, 10/min overall). Tests in `test_orchestrator.py`
+- [x] T1-2 closed: `mig-tf-apply` got `iam:PassRole` on `mig-app-instance`, so the deployed box
+      runs golden_app terraform through the role instead of an admin profile
+- [ ] Teardown after the event: `terraform destroy -target=module.control_plane` (and drop
+      `extra_ingress_ports`), plus Reset + destroy for the golden apps
 - [ ] T4-S-1 `Makefile` — Windows demo host, so `scripts/dev.ps1` starts orchestrator + console
       instead; demo-check/e2e targets not written
 

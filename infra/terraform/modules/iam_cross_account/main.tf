@@ -94,6 +94,32 @@ resource "aws_iam_role_policy_attachment" "tf_apply_admin" {
   policy_arn = "arn:aws:iam::aws:policy/PowerUserAccess"
 }
 
+# PowerUserAccess has no IAM, but every golden_app apply attaches the
+# mig-app-instance profile, which needs iam:PassRole (checklist T1-2). Scoped
+# to exactly that role/profile.
+data "aws_iam_policy_document" "tf_apply_pass_app_role" {
+  count = var.role_type == "agent_runner" ? 1 : 0
+
+  statement {
+    sid       = "PassAppInstanceRole"
+    actions   = ["iam:PassRole", "iam:GetRole"]
+    resources = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/mig-app-instance"]
+  }
+
+  statement {
+    sid       = "ReadAppInstanceProfile"
+    actions   = ["iam:GetInstanceProfile"]
+    resources = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:instance-profile/mig-app-instance"]
+  }
+}
+
+resource "aws_iam_role_policy" "tf_apply_pass_app_role" {
+  count  = var.role_type == "agent_runner" ? 1 : 0
+  name   = "mig-tf-apply-pass-app-role"
+  role   = aws_iam_role.tf_apply[0].id
+  policy = data.aws_iam_policy_document.tf_apply_pass_app_role[0].json
+}
+
 # --- Account A: mig-discovery-readonly, trusts mig-agent-runner in B ---
 
 data "aws_iam_policy_document" "discovery_readonly_trust" {
