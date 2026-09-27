@@ -36,7 +36,7 @@ Data migration, decommissioning, licensing and notifications are **out of scope*
 
 | Doc | Read it if you are… |
 |---|---|
-| [AGENTS.md](AGENTS.md), [CLAUDE.md](CLAUDE.md) | Everyone, and every AI agent — **mandatory before any work** |
+| [AGENTS.md](AGENTS.md) | Everyone, and every AI agent — **mandatory before any work** |
 | [checklist.md](checklist.md) | Everyone. What's done vs. to do; updated with every push |
 | [STATUS.md](STATUS.md) | Everyone. Current working / broken / next snapshot |
 | [docs/00_DELEGATION_MAP.md](docs/00_DELEGATION_MAP.md) | Everyone. Tracks, gates, who depends on whom |
