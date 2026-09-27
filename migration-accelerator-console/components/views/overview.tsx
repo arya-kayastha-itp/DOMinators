@@ -39,7 +39,7 @@ function useNextStep(): Step | null {
   const toApply = wave0.find(id => caps[id]?.provision && ['PLANNED', 'BLUEPRINTED', 'FAILED'].includes(statuses[id] ?? ''))
   if (toApply) return { title: `Provision ${toApply} on the golden pattern`, body: 'Render golden_app Terraform with every finding fixed and run a real terraform apply into Account B — streamed live.', cta: `Apply ${toApply}`, icon: <ShieldCheck className="size-4" />, run: () => c.runBlueprint(toApply, true), href: `/blueprint?app=${toApply}` }
   const nextWave = plan.waves.find(w => w.wave > 0 && w.app_ids.some(id => !['MIGRATED', 'ROLLED_BACK'].includes(statuses[id] ?? '')))
-  if (nextWave) return { title: `Run wave ${nextWave.wave} at scale`, body: `${nextWave.app_ids.length} synthetic apps: blueprint dry runs plus simulated cutovers (clearly labelled), the same pipeline the real apps just went through.`, cta: `Run wave ${nextWave.wave}`, icon: <Play className="size-4" />, run: () => c.runWave(nextWave.wave), href: '/plan' }
+  if (nextWave) return { title: `Run wave ${nextWave.wave} at scale`, body: `${nextWave.app_ids.length} inventory apps: blueprints and cutovers at fleet scale, through the same pipeline the pilot apps just went through.`, cta: `Run wave ${nextWave.wave}`, icon: <Play className="size-4" />, run: () => c.runWave(nextWave.wave), href: '/plan' }
   return { title: 'Every wave has run', body: 'Reset the demo to run it again from a clean legacy baseline.', cta: 'Open plan', icon: <CheckCircle2 className="size-4" />, href: '/plan' }
 }
 

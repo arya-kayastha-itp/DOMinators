@@ -69,7 +69,7 @@ export type Summary = {
 }
 
 export type Capability = {
-  provision: boolean; cutover: boolean; reason: string | null
+  provision: boolean; cutover: boolean; reason: string | null; marker: 'body' | 'header' | null
   runtime: string | null; path_prefix: string | null; listener_port: number | null
 }
 

@@ -61,6 +61,8 @@ resource "aws_instance" "this" {
     app_id = var.name
     port   = var.port
     image  = "bkimminich/juice-shop:v20.2.0"
+    # Adds X-Served-By: target (see the template) so cutover can tell sides apart.
+    proxy_image = "nginx:1.27-alpine"
     }) : templatefile("${path.module}/templates/user_data.sh.tpl", {
     server_py   = file("${path.module}/../../../../app/server.py")
     app_id      = var.name

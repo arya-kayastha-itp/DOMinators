@@ -24,7 +24,11 @@ from agents.common import aws, events, store
 from agents.common.models import AppRecord, AppStatus, BlueprintOutputs, BlueprintResult, EventType, Source
 
 AGENT = "blueprint"
-HEALTH_TIMEOUT_S = 180
+# A fresh golden instance installs Docker, pulls its image(s) and boots the
+# app before the target group sees 2 healthy checks. The demo server makes it
+# in ~2 min; Juice Shop (+ its served-by nginx) took ~3.5 min, which timed out
+# at the old 180 s even though the target came up healthy right after.
+HEALTH_TIMEOUT_S = 420
 HEALTH_POLL_S = 3
 DRY_RUN_BATCH = 50
 

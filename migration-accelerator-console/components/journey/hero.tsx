@@ -124,7 +124,7 @@ export function Hero({ ready }: { ready: boolean }) {
                   {summary?.plan?.projection?.projected_finish ? ` · projected finish ${fmtMonth(summary.plan.projection.projected_finish)}` : ''}
                 </>
               )}
-              {online === false && <>orchestrator offline — showing the reference run</>}
+              {online === false && <>orchestrator offline — showing the last recorded run</>}
             </p>
           </div>
 

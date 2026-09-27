@@ -56,12 +56,12 @@ detailed record._
 - **Cutover needs a traffic generator running** — the orchestrator starts one
   per cutover; a bare `python -m agents.cutover` still needs one (the e2e script
   runs its own).
-- **Not yet eyeballed by A2**: headless Edge is blocked on the A2 laptop, so the
-  rewired console is type-checked and `next build`-clean but was only looked at
-  by the user in a browser. A real cutover driven from the UI is the next check.
-- **Juice Shop can't be cut over live**: its stock image doesn't answer with
-  `served_by`, so the share gate can't tell legacy from target. It can be
-  provisioned; its cutover button explains why it's disabled.
+- **Screenshot tests not possible on the A2 laptop** (headless Edge is blocked by
+  policy); the user drove the console in a browser instead and cut over
+  app-catalog, app-pricing and app-orders to MIGRATED from the UI.
+- **Juice Shop is identified by a header**: legacy and target run the same image,
+  so the golden target adds `X-Served-By: target` (nginx in front) and the gate
+  counts unmarked successes as legacy. Cut over live to MIGRATED this way.
 - **LLM on Gemini free tier**: Bedrock is out (Account B has no Marketplace
   payment method) and watsonx is out (quota spent / project not linked). The demo
   uses `gemini-3.1-flash-lite` (~1.5 s per call); all 4 hooks ran live with 0
@@ -71,9 +71,9 @@ detailed record._
   hasn't been through a real `terraform apply` yet.
 - **Parked apps**: refused by the orchestrator (409 "parked (RED)"); a direct CLI
   `blueprint.run` still wouldn't refuse.
-- **A golden `app-catalog` instance is running** in Account B (applied from the
-  console on 2026-09-27, PROVISIONED, traffic still 100% legacy). Use Reset +
-  destroy in the console (Ctrl K) when done, so nothing keeps costing.
+- **Golden instances are running** in Account B for catalog, pricing, orders
+  and juice-shop — all four MIGRATED, carrying 100% of their traffic. Use Reset + destroy in the
+  console (Ctrl K) after the demo, so nothing keeps costing.
 - **Account B owner's laptop is slow for AWS work**: Python needs 26–36 s to load
   certifi's CA bundle (worked around with `AWS_CA_BUNDLE`), and anything inside
   OneDrive (the venv, Terraform's provider cache) is slow — first

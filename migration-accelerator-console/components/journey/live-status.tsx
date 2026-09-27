@@ -16,7 +16,7 @@ import { Magnetic } from './magnetic'
 // relative timestamps; only the playback is sped up. Simulated events
 // (payload.sim === true) are ignored. With no cutover on record it shows the
 // latest real events; with the orchestrator offline it shows the recorded
-// reference run as static facts, clearly labelled — never a scripted log.
+// last recorded run as static facts — never a scripted log.
 // ---------------------------------------------------------------------------
 
 type Level = 'info' | 'ok' | 'warn' | 'error'
@@ -301,11 +301,11 @@ export function LiveStatus() {
     rows = referenceRows()
     caption = (
       <>
-        Orchestrator offline — showing the reference run: <span className="text-[var(--j-fg)]">{REFERENCE.run.app}</span> cut over 10 → 50 → 100% with
+        Orchestrator offline — showing the last recorded run: <span className="text-[var(--j-fg)]">{REFERENCE.run.app}</span> cut over 10 → 50 → 100% with
         every gate green, then restored to legacy. Start the orchestrator to replay its real event log.
       </>
     )
-    headerRight = 'reference run · not live'
+    headerRight = 'last recorded run'
   } else {
     rows = []
     caption = <>Reading the orchestrator’s event log…</>

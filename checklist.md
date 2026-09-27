@@ -471,11 +471,10 @@ checks of the edge ALB, and headless-browser tests of the console._
       reset` when the store was reset under the client; server-side one-line `summary` per event
 - [x] T4-O-5 Lifecycle enforced with reasons: blueprint needs PLANNED+, never on PARKED (closes the
       "nothing refuses a RED app" gap for anything that goes through the orchestrator), apply only for
-      real apps with a target route; cutover only real + PROVISIONED + an app that answers with
-      `served_by`; discovery refused while any run is active (it re-tiers every app)
+      real apps with a target route; cutover only real + PROVISIONED + a runtime whose responses
+      say which side served them; discovery refused while any run is active (it re-tiers every app)
 - [x] T4-O-6 `/runs/wave/{n}`: synthetic apps → blueprint dry run + `simulate_wave` (events carry
-      `sim`); real apps → parallel applies, then cutovers one at a time providers-first (Juice Shop
-      is provisioned only — its stock image has no `served_by`, so the share gate can't work)
+      `sim`); real apps → parallel applies, then cutovers one at a time providers-first
 - [x] T4-O-7 `/demo/bad-wave`, `/demo/reset[?destroy=true]` (weights 100/0 on every rule, optional
       `terraform destroy` of every `generated/<app>`, `store.reset()`), `/demo/weights/{app}` break-glass
 - [x] T4-O-8 Traffic generator started per cutover (5 s warm-up, 8 s tail) instead of at boot, so
@@ -491,9 +490,21 @@ checks of the edge ALB, and headless-browser tests of the console._
 - [x] Live through the API (2026-09-27): discovery (1,006 apps, 6 real, 10 Gemini tier calls),
       planning (29 waves, 155 parked, finish 2026-12-02, Gemini pilot rationale), and a real
       `terraform apply` of `app-catalog` with output streamed as events → PROVISIONED, healthy
-- [ ] Real cutover + bad-wave rollback driven from the console UI (not yet done)
-- [ ] Golden `app-catalog` instance from that apply is still running in Account B — Reset +
-      destroy from the console when the UI check is done
+- [x] Real cutovers driven from the console UI (2026-09-27, by the user): app-catalog, app-pricing
+      and app-orders → MIGRATED on the real ALB
+- [x] **app-juice-shop cut over live** (2026-09-27, cut-0004 → MIGRATED; target share 0.098 /
+      0.496 / 1.0, 0% errors). Legacy and target run the identical Juice Shop image, so the
+      golden_app `juice-shop` runtime now puts nginx in front adding `X-Served-By: target`; the
+      traffic generator reads the header, and for header-marked runtimes an unmarked *success*
+      counts as legacy (the rule has only the two target groups; unmarked errors stay unknown).
+      Re-apply (`-replace`) is now allowed on a PROVISIONED app when the pattern changes; the
+      blueprint health wait is 420 s (Juice Shop + nginx took ~3.5 min to go healthy and timed
+      out at 180 s). **Track 3: the golden_app module and traffic.py changed — please review**
+- [ ] Bad-wave rollback of app-orders driven from the UI (not yet done)
+- [ ] `test_clean_cutover_migrates_and_follows_weights` is timing-flaky when the whole suite runs
+      on the slow A2 laptop (passes alone); pre-existing
+- [ ] Golden instances for catalog / pricing / orders / juice-shop are running in Account B and
+      all four carry 100% of their traffic — Reset + destroy from the console after the demo
 - [ ] T4-S-1 `Makefile` — Windows demo host, so `scripts/dev.ps1` starts orchestrator + console
       instead; demo-check/e2e targets not written
 
