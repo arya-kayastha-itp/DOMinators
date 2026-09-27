@@ -79,6 +79,18 @@ def build_console() -> None:
         sys.exit("console build produced no out/index.html")
 
 
+def check_console_api_base() -> None:
+    """The API base is inlined at build time. Git Bash (MSYS) rewrites a value
+    like "/api" into "C:/Program Files/Git/api" when it launches a Windows
+    program, which builds a console that can't find its backend — refuse to
+    ship that."""
+    chunks = list((CONSOLE / "out" / "_next").rglob("*.js"))
+    text = "".join(p.read_text(encoding="utf-8", errors="ignore") for p in chunks)
+    if "Programs/Git/api" in text or "Git/api" in text or '"http://localhost:8000"' in text:
+        sys.exit("console/out was built with the wrong API base (MSYS path rewrite or localhost) — "
+                 "rebuild through this script (drop --skip-build)")
+
+
 def bundle() -> bytes:
     buf = io.BytesIO()
     n = 0
@@ -179,6 +191,7 @@ def main() -> None:
     out = tf_outputs()
     if not args.skip_build:
         build_console()
+    check_console_api_base()
     blob = bundle()
 
     log(f"writing the box's .env to SSM {out['control_plane_ssm_prefix']}/env")
