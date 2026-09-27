@@ -175,9 +175,11 @@ resource "aws_instance" "this" {
     terraform_version = var.terraform_version
   })
 
-  # A newer AL2023 AMI shouldn't replace the box (and wipe its SQLite store).
+  # A newer AL2023 AMI shouldn't replace the box (and wipe its SQLite store),
+  # and user_data only runs on first boot anyway: runtime config (code, .env,
+  # nginx.conf) ships through scripts/deploy_control_plane.py.
   lifecycle {
-    ignore_changes = [ami]
+    ignore_changes = [ami, user_data]
   }
 
   tags = merge(var.tags, { Name = var.name_prefix })

@@ -41,7 +41,7 @@ TF_ENV = ROOT / "infra" / "terraform" / "envs" / "target"
 BUNDLE = [
     "agents", "orchestrator", "app", "infra/terraform/modules",
     "data/fleet.json", "data/target_outputs.json", "requirements.txt",
-    "migration-accelerator-console/out",
+    "migration-accelerator-console/out", "deploy/control-plane",
 ]
 SKIP_PARTS = {"__pycache__", ".pytest_cache", "tests", ".terraform", "cache"}
 SKIP_SUFFIXES = {".pyc", ".tfstate", ".tfplan"}
@@ -136,6 +136,9 @@ def run_on_box(ssm, instance_id: str, timeout_s: int = 900) -> None:
                     # First boot: wait for the bootstrap to install the deploy script.
                     "for i in $(seq 1 90); do [ -x /usr/local/bin/dominators-deploy ] && break; sleep 10; done",
                     "/usr/local/bin/dominators-deploy",
+                    # nginx config ships with the release, so changes deploy like code.
+                    "install -m 644 /opt/dominators/current/deploy/control-plane/nginx.conf /etc/nginx/nginx.conf",
+                    "nginx -t && systemctl reload nginx",
                 ]},
                 TimeoutSeconds=timeout_s,
             )["Command"]["CommandId"]

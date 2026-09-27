@@ -92,6 +92,8 @@ http {
   server {
     listen 80 default_server;
     root /opt/dominators/current/migration-accelerator-console/out;
+    # First-boot config; every deploy installs deploy/control-plane/nginx.conf.
+    absolute_redirect off;
 
     # Orchestrator. SSE (/api/events) needs buffering off and a long read timeout.
     location /api/ {

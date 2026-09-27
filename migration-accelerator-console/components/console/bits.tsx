@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Activity, ArrowDownRight, ArrowUpRight, Boxes, GitBranch, Info, LayoutDashboard, Layers3, Rocket, ShieldCheck, Terminal } from 'lucide-react'
+import { Activity, ArrowDownRight, ArrowUpRight, Boxes, GitBranch, Info, LayoutDashboard, Layers3, Rocket, Route, ShieldCheck, Terminal } from 'lucide-react'
 import type { AppStatus, FindingCode, Source, Tier } from '@/lib/contracts'
 import { FINDING_META } from '@/lib/meta'
 import { cn } from '@/lib/utils'
@@ -10,6 +10,7 @@ import { Badge, Card, CountUp, Tip } from '@/components/ui/primitives'
 // ---------------------------------------------------------------- Navigation model
 export const NAV = [
   { href: '/', label: 'Overview', icon: LayoutDashboard, group: 'Program', description: 'Mission control for the migration program' },
+  { href: '/journey', label: 'Journey', icon: Route, group: 'Program', description: 'The pipeline story, stage by stage' },
   { href: '/fleet', label: 'Fleet', icon: Boxes, group: 'Discover', description: 'Every discovered app, finding and tier' },
   { href: '/dependencies', label: 'Dependencies', icon: GitBranch, group: 'Discover', description: '3D dependency topology' },
   { href: '/plan', label: 'Wave plan', icon: Layers3, group: 'Plan', description: 'Dependency-ordered waves and the 2027 projection' },

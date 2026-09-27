@@ -563,7 +563,7 @@ both themes, keyboard skip link, and the demo flows below.
       when offline, labelled), "Live run" replays the last real cutover's events with true relative
       times, stages ticked only if they happened
 - [ ] `/journey`: frame-rate check on real hardware (headless runs can't measure 60 fps)
-- [ ] `/journey`: link it from the console (right now it is only reachable by URL)
+- [x] `/journey` linked from the console sidebar (Program → Journey); deployed at `/journey/`
 - [ ] Track 3: adopt the statistical share gate in `gates.py` (see TRACK_3 T3-C-4)
 
 ### 15. Gates & demo readiness (everyone)
