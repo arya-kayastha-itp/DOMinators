@@ -353,6 +353,18 @@ def do_reset(destroy: bool) -> None:
             notify(f"reset: couldn't restore weights for {app_id}: {exc}", app_id, level="error")
     notify(f"Reset: weights 100/0 (legacy) on {len(rule_apps)} rules")
 
+    if destroy:
+        # State is remote (S3, key generated/<app>), so an instance applied from
+        # another machine (a laptop, a previous box) still has state here — but
+        # destroy needs the config too. Re-render it for every provisionable
+        # real app we know about; destroying an app with empty state is a no-op.
+        known = {a.app_id: a for a in store.get_apps(source=Source.REAL.value)}
+        for app_id, cap in capabilities().items():
+            if cap.get("provision") and app_id in known and not (GENERATED / app_id / "main.tf").exists():
+                try:
+                    blueprint.build(known[app_id])
+                except Exception as exc:  # noqa: BLE001
+                    notify(f"reset: couldn't render {app_id} for destroy: {str(exc)[:200]}", app_id, level="error")
     if destroy and GENERATED.exists():
         for tf_dir in sorted(p for p in GENERATED.iterdir() if (p / "main.tf").exists()):
             app_id = tf_dir.name

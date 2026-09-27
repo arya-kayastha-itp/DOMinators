@@ -64,9 +64,15 @@ def _assumed(parent: boto3.Session, role_arn: str, session_name: str, external_i
     return boto3.Session(botocore_session=core)
 
 
+def _profile() -> str | None:
+    """TARGET_PROFILE, or None on a host with an instance role (the deployed
+    control plane sets TARGET_PROFILE= empty and uses the default chain)."""
+    return os.getenv("TARGET_PROFILE", "mig-target").strip() or None
+
+
 @lru_cache(maxsize=1)
 def target() -> boto3.Session:
-    return boto3.Session(profile_name=_env("TARGET_PROFILE", "mig-target"), region_name=region())
+    return boto3.Session(profile_name=_profile(), region_name=region())
 
 
 @lru_cache(maxsize=1)
@@ -90,7 +96,8 @@ def tf_apply_env() -> dict[str, str]:
     env = {"AWS_REGION": region(), "AWS_DEFAULT_REGION": region()}
     role = os.getenv("TF_APPLY_ROLE_ARN")
     if not role or os.getenv("TF_APPLY_USE_PROFILE") == "1":
-        env["AWS_PROFILE"] = _env("TARGET_PROFILE", "mig-target")
+        if _profile():
+            env["AWS_PROFILE"] = _profile()
         return env
     creds = _assumed(target(), role, "mig-tf-apply").get_credentials().get_frozen_credentials()
     env.update(

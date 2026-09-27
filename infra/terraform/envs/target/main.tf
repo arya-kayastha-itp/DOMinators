@@ -5,6 +5,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
   }
 }
 
@@ -40,6 +44,8 @@ locals {
   app_runtimes = {
     "app-juice-shop" = "juice-shop"
   }
+
+  control_plane_port = 8088
 }
 
 # --- Network: full public/private tiering, unlike legacy ---
@@ -66,6 +72,9 @@ module "edge_alb" {
   public_subnet_ids = module.network.public_subnet_ids
   apps              = local.apps
   tags              = local.tags
+
+  # The control plane's CloudFront-only listener (modules/control_plane).
+  extra_ingress_ports = [local.control_plane_port]
 }
 
 # --- Pre-created golden resources: shared across every golden_app instance ---
@@ -216,4 +225,22 @@ resource "aws_route" "public_to_legacy" {
   route_table_id            = module.network.public_route_table_id
   destination_cidr_block    = var.legacy_vpc_cidr
   vpc_peering_connection_id = aws_vpc_peering_connection.to_legacy[0].id
+}
+
+# --- Control plane: the deployed DOMinators console + orchestrator ---
+# Public HTTPS via CloudFront; viewers are read-only, actions need the
+# operator key (orchestrator/main.py). Deploy code with
+# scripts/deploy_control_plane.py.
+
+module "control_plane" {
+  source = "../../modules/control_plane"
+
+  vpc_id                = module.network.vpc_id
+  private_subnet_ids    = module.network.private_subnet_ids
+  alb_arn               = module.edge_alb.alb_arn
+  alb_dns_name          = module.edge_alb.alb_dns_name
+  alb_security_group_id = module.edge_alb.alb_security_group_id
+  listener_port         = local.control_plane_port
+  assumable_role_arns   = [module.iam_cross_account.agent_runner_role_arn, module.iam_cross_account.tf_apply_role_arn]
+  tags                  = local.tags
 }

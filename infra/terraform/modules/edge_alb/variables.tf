@@ -33,3 +33,11 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
+
+# Extra listener ports opened on the ALB security group for listeners defined
+# outside this module (e.g. the control plane's CloudFront-only port). Kept
+# here because this SG uses inline rules: a separate rule resource would flap.
+variable "extra_ingress_ports" {
+  type    = list(number)
+  default = []
+}

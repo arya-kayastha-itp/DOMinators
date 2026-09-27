@@ -2,7 +2,7 @@
 
 import { Dialog } from '@base-ui/react/dialog'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeftRight, ChevronRight, Menu, Moon, PanelLeftClose, PanelLeftOpen, RefreshCw, Search, Sparkles, Sun, WifiOff, X } from 'lucide-react'
+import { ArrowLeftRight, ChevronRight, Eye, Lock, Menu, Moon, PanelLeftClose, PanelLeftOpen, RefreshCw, Search, Sparkles, Sun, LockOpen, WifiOff, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -213,6 +213,47 @@ function ThemeToggle() {
   )
 }
 
+// View-only for visitors on the deployed console; the operator unlocks actions
+// with the key (the orchestrator enforces it — this is only the UI side).
+function OperatorControl() {
+  const { operatorRequired, readOnly, unlock, lock } = useConsole()
+  const [open, setOpen] = useState(false)
+  const [key, setKey] = useState('')
+  const [busy, setBusy] = useState(false)
+  if (!operatorRequired) return null
+  if (!readOnly) {
+    return (
+      <Tip content="Operator mode: actions run against AWS. Click to lock.">
+        <button onClick={lock} className="flex h-9 items-center gap-1.5 rounded-lg border border-success/30 bg-success/10 px-2.5 text-[12px] font-medium text-success transition hover:brightness-110" aria-label="Lock operator mode">
+          <LockOpen className="size-3.5" /><span className="hidden md:inline">Operator</span>
+        </button>
+      </Tip>
+    )
+  }
+  return (
+    <div className="relative">
+      <Tip content="You're watching live. Actions that change AWS need the operator key.">
+        <button onClick={() => setOpen(o => !o)} aria-expanded={open} className="flex h-9 items-center gap-1.5 rounded-lg border bg-card px-2.5 text-[12px] font-medium text-muted-foreground transition hover:text-foreground" aria-label="View only — unlock operator mode">
+          <Eye className="size-3.5" /><span className="hidden md:inline">View only</span><Lock className="size-3 text-subtle" />
+        </button>
+      </Tip>
+      {open && (
+        <form
+          onSubmit={async e => { e.preventDefault(); setBusy(true); const ok = await unlock(key); setBusy(false); if (ok) { setOpen(false); setKey('') } }}
+          className="absolute right-0 top-11 z-50 w-72 rounded-xl border bg-popover p-3 shadow-elev-3"
+        >
+          <label htmlFor="op-key" className="text-xs font-medium">Operator key</label>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">Unlocks discovery, apply, cutover and reset. Kept in this tab only.</p>
+          <div className="mt-2 flex gap-2">
+            <input id="op-key" type="password" autoFocus value={key} onChange={e => setKey(e.target.value)} className="h-8 min-w-0 flex-1 rounded-lg border bg-card px-2 text-[13px] outline-none focus:border-primary/50" autoComplete="off" />
+            <button disabled={!key || busy} className="h-8 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground disabled:opacity-50">{busy ? '…' : 'Unlock'}</button>
+          </div>
+        </form>
+      )}
+    </div>
+  )
+}
+
 function Topbar({ onMenu }: { onMenu: () => void }) {
   const pathname = usePathname()
   const { openPalette, openCopilot } = useShell()
@@ -227,6 +268,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
       </nav>
       <div className="ml-auto flex items-center gap-2">
         <PipelineRail />
+        <OperatorControl />
         <button onClick={openPalette} className="flex h-9 items-center gap-2 rounded-lg border bg-card px-2.5 text-[13px] text-muted-foreground transition hover:text-foreground sm:w-56" aria-label="Open command palette">
           <Search className="size-4" /><span className="hidden flex-1 text-left sm:inline">Search or run…</span><Kbd className="hidden sm:inline-flex">Ctrl K</Kbd>
         </button>
@@ -246,7 +288,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [copilot, setCopilot] = useState<{ open: boolean; prompt?: string; nonce: number }>({ open: false, nonce: 0 })
-  const { demoMode, demo } = useConsole()
+  const { demoMode, demo, readOnly } = useConsole()
 
   useEffect(() => { try { setCollapsedState(localStorage.getItem('mac.sidebar') === '1') } catch {} }, [])
   const setCollapsed = (v: boolean) => { setCollapsedState(v); try { localStorage.setItem('mac.sidebar', v ? '1' : '0') } catch {} }
@@ -305,7 +347,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       <CopilotPanel open={copilot.open} onOpenChange={open => setCopilot(c => ({ ...c, open }))} initialPrompt={copilot.prompt} nonce={copilot.nonce} />
-      {demoMode && <DemoDock />}
+      {demoMode && !readOnly && <DemoDock />}
     </ShellContext.Provider>
   )
 }

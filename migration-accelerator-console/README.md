@@ -26,6 +26,18 @@ corepack pnpm dev                            # http://localhost:3000
 The console talks to `NEXT_PUBLIC_API_BASE` (default `http://localhost:8000`). Append `?demo=1`
 for the operator dock. `terraform` must be on the orchestrator's PATH for blueprint apply.
 
+### Deployed
+
+The console and orchestrator also run in Account B behind CloudFront
+(`infra/terraform/modules/control_plane`). From the repo root:
+
+```bash
+python scripts/deploy_control_plane.py      # build (static export, API at /api), bundle, upload, restart
+```
+
+Visitors get a read-only console; the operator unlocks actions with the key in
+SSM `/mig/control-plane/operator_key` (top bar → View only → Unlock).
+
 | Shortcut | Action |
 |---|---|
 | `Ctrl/⌘ K` | Command palette — pages, agent actions, app search, theme |

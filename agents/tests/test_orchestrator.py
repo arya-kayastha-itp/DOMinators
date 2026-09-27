@@ -250,3 +250,59 @@ def test_real_cutover_runs_behind_a_traffic_generator(monkeypatch):
     monkeypatch.setattr(runs, "TAIL_S", 0)
     runs.do_cutover("app-catalog")
     assert seen == {"app_id": "app-catalog", "url": "http://alb/catalog/", "started": True, "ran": "app-catalog", "stopped": True}
+
+
+def test_actions_need_the_operator_key_when_one_is_set(client, monkeypatch):
+    monkeypatch.setenv("OPERATOR_KEY", "s3cret")
+    assert client.get("/auth").json() == {"operator_required": True, "valid": False}
+    assert client.get("/auth", headers={"X-Operator-Key": "s3cret"}).json()["valid"] is True
+    r = client.post("/runs/discovery", json={"scope": "synthetic"})
+    assert r.status_code == 401 and "operator key" in r.json()["detail"]
+    assert client.post("/demo/reset", headers={"X-Operator-Key": "wrong"}).status_code == 401
+    assert client.post("/demo/bad-wave", json={"app_id": "app-orders", "enabled": True}).status_code == 401
+    # reads stay open for viewers
+    assert client.get("/summary").status_code == 200 and client.get("/fleet").status_code == 200
+    r = client.post("/runs/discovery", json={"scope": "synthetic"}, headers={"X-Operator-Key": "s3cret"})
+    assert r.status_code == 202
+    wait_idle()
+
+
+def test_no_operator_key_means_open_for_local_dev(client, monkeypatch):
+    monkeypatch.delenv("OPERATOR_KEY", raising=False)
+    assert client.get("/auth").json() == {"operator_required": False, "valid": True}
+    assert client.post("/demo/bad-wave", json={"app_id": "app-orders", "enabled": False}).status_code == 200
+
+
+def test_copilot_is_rate_limited_per_viewer(client, monkeypatch):
+    from orchestrator import main
+    monkeypatch.setenv("OPERATOR_KEY", "s3cret")
+    main._copilot_hits.clear()
+    monkeypatch.setattr(main.copilot, "answer", lambda q: {"answer": "ok", "model": None, "fallback": True, "facts": []})
+    h = {"X-Forwarded-For": "203.0.113.7"}
+    codes = [client.post("/copilot", json={"question": "hi"}, headers=h).status_code for _ in range(main.COPILOT_PER_CLIENT + 1)]
+    assert codes[:-1] == [200] * main.COPILOT_PER_CLIENT and codes[-1] == 429
+    assert client.post("/copilot", json={"question": "hi"}, headers={**h, "X-Operator-Key": "s3cret"}).status_code == 200
+    main._copilot_hits.clear()
+
+
+def test_reset_destroy_renders_missing_generated_dirs(client, monkeypatch, tmp_path):
+    """Instances applied from another machine still get destroyed: reset
+    re-renders the terraform config for every provisionable real app."""
+    store.upsert_apps([a for a in fixtures.apps() if a.app_id in ("app-catalog", "app-gitea")])
+    monkeypatch.setattr(runs, "GENERATED", tmp_path / "generated")
+    monkeypatch.setattr(runs.aws, "target_outputs", lambda: {"listener_rule_arns": {"app-catalog": "a"}})
+    monkeypatch.setattr(runs, "capabilities", lambda: {"app-catalog": {"provision": True}, "app-gitea": {"provision": False}})
+    monkeypatch.setattr(runs, "elbv2", lambda: "fake")
+    monkeypatch.setattr(runs.weights, "set_weights", lambda *a, **k: None)
+    rendered, destroyed = [], []
+
+    def fake_build(app):
+        (tmp_path / "generated" / app.app_id).mkdir(parents=True, exist_ok=True)
+        (tmp_path / "generated" / app.app_id / "main.tf").write_text("# rendered")
+        rendered.append(app.app_id)
+
+    monkeypatch.setattr(runs.blueprint, "build", fake_build)
+    monkeypatch.setattr(runs.terraform, "init", lambda *a, **k: None)
+    monkeypatch.setattr(runs.terraform, "destroy", lambda app_id, d: destroyed.append(app_id))
+    runs.do_reset(destroy=True)
+    assert rendered == ["app-catalog"] and destroyed == ["app-catalog"]
